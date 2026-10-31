@@ -73,11 +73,9 @@ const closeLightboxBtn = document.getElementById('close-lightbox-btn');
 
 // Settings Form
 const clientIdInput = document.getElementById('client-id-input');
-const webhookUrlInput = document.getElementById('webhook-url-input');
 const folderLinkInput = document.getElementById('folder-link-input');
 const folderPreviewWrap = document.getElementById('folder-preview-wrap');
 const detectedFolderId = document.getElementById('detected-folder-id');
-const folderValidationBox = document.getElementById('folder-validation-box');
 const authGoogleBtn = document.getElementById('auth-google-btn');
 const authBtnLabel = document.getElementById('auth-btn-label');
 const qualitySelect = document.getElementById('quality-select');
@@ -116,8 +114,8 @@ async function initApp() {
   setupNetworkMonitoring();
   setupSyncMonitoring();
 
-  // If online, configured, AND (authenticated OR has webhook), auto sync pending queue
-  if (navigator.onLine && gdriveManager.getTargetFolderId() && (gdriveManager.isConnected() || gdriveManager.hasWebhook())) {
+  // If online, configured, AND authenticated, auto sync pending queue
+  if (navigator.onLine && gdriveManager.getTargetFolderId() && gdriveManager.isConnected()) {
     gdriveManager.syncQueue();
   }
 }
@@ -176,8 +174,8 @@ async function handleShutter() {
     updateThumbnailPreview(savedPhoto.thumbnail);
     await refreshGalleryOverview();
 
-    // 5. Trigger sync if online, configured, and (authenticated or webhook active)
-    if (navigator.onLine && targetFolder && (gdriveManager.isConnected() || gdriveManager.hasWebhook())) {
+    // 5. Trigger sync if online, configured, and authenticated
+    if (navigator.onLine && targetFolder && gdriveManager.isConnected()) {
       gdriveManager.syncQueue();
     }
   } catch (err) {
@@ -194,7 +192,6 @@ async function handleShutter() {
 function loadSettings() {
   const savedClientId = gdriveManager.getClientId();
   const savedFolderId = gdriveManager.getTargetFolderId();
-  const savedWebhook = gdriveManager.getWebhookUrl();
   const savedQuality = localStorage.getItem('megallery_quality') || '0.85';
 
   if (savedClientId) clientIdInput.value = savedClientId;
@@ -203,55 +200,13 @@ function loadSettings() {
     detectedFolderId.textContent = savedFolderId;
     folderPreviewWrap.style.display = 'block';
   }
-  if (savedWebhook && webhookUrlInput) {
-    webhookUrlInput.value = savedWebhook;
-  }
   qualitySelect.value = savedQuality;
 
   updateAuthButtonState();
-  validateTargetFolder();
-}
-
-function validateTargetFolder() {
-  const folderId = gdriveManager.getTargetFolderId();
-  if (!folderValidationBox) return;
-
-  if (!folderId) {
-    folderValidationBox.style.display = 'none';
-    return;
-  }
-
-  folderValidationBox.style.display = 'block';
-  if (gdriveManager.hasWebhook()) {
-    folderValidationBox.style.background = 'rgba(78, 215, 241, 0.15)';
-    folderValidationBox.style.border = '1px solid var(--color-cyan)';
-    folderValidationBox.style.color = 'var(--color-ice)';
-    folderValidationBox.innerHTML = `✓ <strong>Mode Bebas Login Aktif:</strong> Foto otomatis diunggah ke folder <code>${folderId}</code> tanpa popup login sama sekali.`;
-  } else if (gdriveManager.isConnected()) {
-    folderValidationBox.style.background = 'rgba(78, 215, 241, 0.15)';
-    folderValidationBox.style.border = '1px solid var(--color-cyan)';
-    folderValidationBox.style.color = 'var(--color-ice)';
-    folderValidationBox.innerHTML = `✓ <strong>Target Folder Terhubung:</strong> <code style="color: var(--color-yellow);">${folderId}</code><br><span style="font-size: 10px; opacity: 0.85;">Akun Google aktif. Foto akan otomatis masuk ke folder ini saat Anda klik foto atau tombol shutter.</span>`;
-  } else {
-    folderValidationBox.style.background = 'rgba(255, 250, 141, 0.1)';
-    folderValidationBox.style.border = '1px solid rgba(255, 250, 141, 0.3)';
-    folderValidationBox.style.color = 'var(--color-yellow)';
-    folderValidationBox.innerHTML = `ℹ️ <strong>Target Folder Terdeteksi:</strong> <code>${folderId}</code><br><span style="font-size: 10px; opacity: 0.85;">Klik tombol "Hubungkan Akun Google" di atas atau isi Webhook URL untuk sinkronisasi.</span>`;
-  }
 }
 
 function handleFolderInputChange() {
   const input = folderLinkInput.value.trim();
-
-  // If user pasted Google Apps Script Web App URL here by mistake, auto-assign
-  if (input.includes('script.google.com/macros/s/')) {
-    gdriveManager.setWebhookUrl(input);
-    if (webhookUrlInput) webhookUrlInput.value = input;
-    updateAuthButtonState();
-    validateTargetFolder();
-    return;
-  }
-
   const folderId = extractFolderId(input);
 
   if (folderId) {
@@ -264,16 +219,10 @@ function handleFolderInputChange() {
       gdriveManager.setTargetFolderId('');
     }
   }
-
-  validateTargetFolder();
 }
 
 function updateAuthButtonState() {
-  if (gdriveManager.hasWebhook()) {
-    authBtnLabel.textContent = 'Mode Webhook Bebas Login Aktif ✓';
-    authGoogleBtn.style.background = 'rgba(78, 215, 241, 0.25)';
-    authGoogleBtn.style.borderColor = 'var(--color-cyan)';
-  } else if (gdriveManager.isConnected()) {
+  if (gdriveManager.isConnected()) {
     authBtnLabel.textContent = 'Google Drive Terhubung ✓';
     authGoogleBtn.style.background = 'rgba(34, 197, 94, 0.3)';
     authGoogleBtn.style.borderColor = '#22c55e';
@@ -298,7 +247,6 @@ async function handleGoogleAuth() {
     authBtnLabel.textContent = 'Menghubungkan...';
     await gdriveManager.requestAccessToken('consent');
     updateAuthButtonState();
-    await validateTargetFolder();
     alert('Berhasil terhubung ke akun Google Drive!');
 
     // Trigger sync immediately if there are pending photos
@@ -446,8 +394,8 @@ function setupNetworkMonitoring() {
     if (navigator.onLine) {
       networkDot.className = 'status-dot';
       networkText.textContent = 'Online';
-      // Attempt auto sync when back online (if authenticated or webhook active)
-      if (gdriveManager.getTargetFolderId() && (gdriveManager.isConnected() || gdriveManager.hasWebhook())) {
+      // Attempt auto sync when back online (if authenticated)
+      if (gdriveManager.getTargetFolderId() && gdriveManager.isConnected()) {
         gdriveManager.syncQueue();
       }
     } else {
@@ -554,7 +502,6 @@ function bindEvents() {
 
   // Settings Modal Controls
   settingsBtn.addEventListener('click', () => {
-    validateTargetFolder();
     settingsModal.classList.add('active');
   });
   closeSettingsBtn.addEventListener('click', () => {
@@ -562,14 +509,6 @@ function bindEvents() {
   });
 
   folderLinkInput.addEventListener('input', handleFolderInputChange);
-  
-  if (webhookUrlInput) {
-    webhookUrlInput.addEventListener('change', () => {
-      gdriveManager.setWebhookUrl(webhookUrlInput.value);
-      updateAuthButtonState();
-      validateTargetFolder();
-    });
-  }
 
   clientIdInput.addEventListener('change', () => {
     gdriveManager.setClientId(clientIdInput.value);
@@ -617,7 +556,7 @@ function bindEvents() {
       alert('Tentukan folder Google Drive di menu Pengaturan terlebih dahulu.');
       return;
     }
-    if (!gdriveManager.hasWebhook() && !gdriveManager.isConnected()) {
+    if (!gdriveManager.isConnected()) {
       try {
         await gdriveManager.requestAccessToken('consent');
         updateAuthButtonState();
@@ -662,7 +601,7 @@ function bindEvents() {
       alert('Perangkat sedang offline.');
       return;
     }
-    if (!gdriveManager.hasWebhook() && !gdriveManager.isConnected()) {
+    if (!gdriveManager.isConnected()) {
       try {
         await gdriveManager.requestAccessToken('consent');
         updateAuthButtonState();

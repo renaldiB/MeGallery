@@ -130,7 +130,7 @@
               <span class="folder-id-preview">Folder ID: <strong id="detected-folder-id">-</strong></span>
             </div>
 
-            <!-- Team / Multi-user Sharing Notice -->
+            <!-- Notice Box -->
             <div class="team-folder-notice" style="background: rgba(20, 40, 52, 0.75); border: 1px solid rgba(111, 230, 252, 0.35); border-left: 3px solid var(--color-yellow); border-radius: 8px; padding: 10px 12px; margin-top: 10px; font-size: 11px; line-height: 1.5; color: var(--color-ice);">
               <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-yellow)" stroke-width="2.5">
@@ -138,18 +138,14 @@
                   <line x1="12" y1="8" x2="12" y2="12"/>
                   <line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
-                <strong style="color: var(--color-yellow);">Perhatian Folder Tim / Kantor:</strong>
+                <strong style="color: var(--color-yellow); font-size: 12px;">PENTING</strong>
               </div>
-              Jika folder ini diakses beberapa orang dengan akun berbeda, pastikan izin folder di Google Drive diset ke:
+              Pastikan izin folder di Google Drive diset ke:
               <div style="margin-top: 4px; padding-left: 4px; color: var(--color-sky);">
                 • Akses: <strong>"Anyone with the link"</strong> (Siapa saja yang memiliki link)<br>
                 • Peran: <strong>"Editor"</strong>
               </div>
-              <span style="font-size: 10px; opacity: 0.8; display: block; margin-top: 4px;">*Tanpa akses Editor, Google akan menolak foto dari akun rekan Anda.</span>
             </div>
-
-            <!-- Live Validation Box -->
-            <div id="folder-validation-box" style="display: none; padding: 8px 12px; border-radius: 8px; font-size: 11px; margin-top: 8px; line-height: 1.4;"></div>
           </div>
 
           <!-- Connect / Authorize Button -->
@@ -161,16 +157,6 @@
             </svg>
             <span id="auth-btn-label">Hubungkan Akun Google</span>
           </button>
-
-          <!-- Zero-Login Google Apps Script Webhook Option -->
-          <details style="margin-top: 4px; font-size: 12px; color: var(--color-sand);" id="webhook-details">
-            <summary style="cursor: pointer; padding: 6px 0; opacity: 0.95; color: var(--color-yellow);">⚡ Mode Bebas Login (Google Apps Script Webhook)</summary>
-            <div class="form-group" style="margin-top: 8px;">
-              <label class="form-label" for="webhook-url-input">Google Apps Script Web App URL</label>
-              <input type="text" id="webhook-url-input" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" spellcheck="false" autocomplete="off">
-              <p class="form-help">Jika link Web App diisi di sini (atau di Netlify <code>VITE_GAS_WEBHOOK_URL</code>), semua rekan kantor bisa langsung foto tanpa popup login sama sekali.</p>
-            </div>
-          </details>
 
           <!-- Advanced / Developer Option: Custom Client ID -->
           <details style="margin-top: 4px; font-size: 12px; color: var(--color-sand);">

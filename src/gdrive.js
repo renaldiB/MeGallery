@@ -4,7 +4,7 @@
  */
 
 import { getPendingPhotos, updatePhotoStatus } from './storage.js';
-import { DEFAULT_CLIENT_ID, DEFAULT_WEBHOOK_URL } from './config.js';
+import { DEFAULT_CLIENT_ID } from './config.js';
 
 const GIS_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
 const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
@@ -19,24 +19,10 @@ class GoogleDriveManager {
     this.isSyncing = false;
     this.clientId = localStorage.getItem('megallery_client_id') || DEFAULT_CLIENT_ID || '';
     this.targetFolderId = localStorage.getItem('megallery_folder_id') || '';
-    this.webhookUrl = localStorage.getItem('megallery_webhook_url') || DEFAULT_WEBHOOK_URL || '';
     this.syncListeners = new Set();
 
     // Restore cached token from sessionStorage if still valid
     this.loadCachedToken();
-  }
-
-  setWebhookUrl(url) {
-    this.webhookUrl = (url || '').trim();
-    localStorage.setItem('megallery_webhook_url', this.webhookUrl);
-  }
-
-  getWebhookUrl() {
-    return this.webhookUrl || DEFAULT_WEBHOOK_URL || '';
-  }
-
-  hasWebhook() {
-    return !!this.getWebhookUrl();
   }
 
   loadCachedToken() {
@@ -118,7 +104,7 @@ class GoogleDriveManager {
   }
 
   /**
-   * Request user authorization token via GIS (MUST be triggered by user gesture)
+   * Request user authorization token via GIS (triggered by user gesture)
    */
   async requestAccessToken(prompt = '') {
     if (!this.clientId) {
@@ -142,7 +128,6 @@ class GoogleDriveManager {
           }
         });
 
-        // Request token (triggers Google popup window)
         this.tokenClient.requestAccessToken({ prompt: prompt || '' });
       } catch (err) {
         reject(err);
@@ -168,121 +153,9 @@ class GoogleDriveManager {
   }
 
   /**
-   * Validate if active account has Edit/Write permissions to target folder
-   */
-  async checkFolderAccess(folderId) {
-    const targetFolder = (folderId || this.targetFolderId || '').trim();
-    if (!targetFolder) {
-      return { valid: false, error: 'Link / ID folder belum diisi.' };
-    }
-    if (!this.isConnected()) {
-      return { valid: false, needsLogin: true, error: 'Akun Google belum terhubung.' };
-    }
-
-    try {
-      const token = await this.ensureValidToken();
-      const url = `https://www.googleapis.com/drive/v3/files/${targetFolder}?fields=id,name,capabilities,owners`;
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const canAdd = data.capabilities?.canAddChildren ?? true;
-        if (!canAdd) {
-          return {
-            valid: false,
-            code: 403,
-            name: data.name,
-            error: 'Akun Google Anda hanya memiliki izin Lihat (Viewer). Minta pemilik folder mengubah akses menjadi Editor.'
-          };
-        }
-        return { valid: true, name: data.name };
-      }
-
-      const errText = await res.text();
-      let msg = errText;
-      try {
-        const parsed = JSON.parse(errText);
-        msg = parsed.error?.message || errText;
-      } catch (_) {}
-
-      if (res.status === 404) {
-        return {
-          valid: false,
-          code: 404,
-          error: 'Folder tidak ditemukan. Pastikan link folder Google Drive benar.'
-        };
-      } else if (res.status === 403) {
-        return {
-          valid: false,
-          code: 403,
-          error: 'Akses ditolak: Akun Google yang Anda gunakan tidak memiliki akses ke folder ini. Pastikan folder diset "Anyone with link" + "Editor".'
-        };
-      }
-
-      return { valid: false, code: res.status, error: `Validasi gagal (${res.status}): ${msg}` };
-    } catch (err) {
-      return { valid: false, error: err.message };
-    }
-  }
-
-  /**
-   * Upload photo via Google Apps Script Webhook (Zero Login / Zero Popup)
-   */
-  async uploadPhotoViaWebhook({ blob, filename, folderId }) {
-    const url = this.getWebhookUrl();
-    if (!url) {
-      throw new Error('Google Apps Script Webhook URL belum diatur.');
-    }
-    const targetFolder = (folderId || this.targetFolderId || '').trim();
-
-    // Convert blob to base64
-    const base64 = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const res = reader.result;
-        resolve(res.split(',')[1]);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-
-    const payload = {
-      folderId: targetFolder,
-      filename: filename,
-      base64: base64
-    };
-
-    // Use text/plain to avoid CORS preflight blocking in Google Apps Script
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      throw new Error(`Upload webhook gagal (HTTP ${response.status})`);
-    }
-
-    const data = await response.json();
-    if (data.status !== 'success') {
-      throw new Error(`Google Apps Script error: ${data.message || 'Gagal menyimpan file'}`);
-    }
-
-    return { id: data.id, name: filename };
-  }
-
-  /**
-   * Upload single Blob directly to Google Drive via multipart upload or webhook
+   * Upload single Blob directly to Google Drive via multipart upload
    */
   async uploadPhoto({ blob, filename, folderId }) {
-    if (this.hasWebhook()) {
-      return this.uploadPhotoViaWebhook({ blob, filename, folderId });
-    }
-
     const token = await this.ensureValidToken();
     const targetFolder = (folderId || this.targetFolderId || '').trim();
 
@@ -335,7 +208,7 @@ class GoogleDriveManager {
         this.clearToken();
         throw new Error('Sesi login Google kedaluwarsa. Silakan klik "Hubungkan Akun Google" kembali.');
       } else if (errorCode === 403) {
-        throw new Error(`Akses ditolak (${parsedMsg}). Pastikan folder diset "Anyone with link" + "Editor" dan Google Drive API sudah diaktifkan di Google Cloud.`);
+        throw new Error(`Akses ditolak (${parsedMsg}). Pastikan folder diset "Anyone with the link" + "Editor" dan Google Drive API aktif di Google Cloud.`);
       } else if (errorCode === 404) {
         throw new Error(`Folder tidak ditemukan di Google Drive (${parsedMsg}). Periksa link folder Anda.`);
       }
@@ -356,22 +229,13 @@ class GoogleDriveManager {
       this.notifyListeners({ type: 'offline', message: 'Perangkat offline, sinkronisasi ditunda.' });
       return;
     }
-
-    const useWebhook = this.hasWebhook();
-    if (!useWebhook) {
-      if (!this.clientId || !this.targetFolderId) {
-        this.notifyListeners({ type: 'unconfigured', message: 'Client ID atau Folder ID belum diatur.' });
-        return;
-      }
-      if (!this.isConnected()) {
-        this.notifyListeners({ type: 'auth_needed', message: 'Perlu menghubungkan akun Google' });
-        return;
-      }
-    } else {
-      if (!this.targetFolderId) {
-        this.notifyListeners({ type: 'unconfigured', message: 'Folder ID belum diatur.' });
-        return;
-      }
+    if (!this.clientId || !this.targetFolderId) {
+      this.notifyListeners({ type: 'unconfigured', message: 'Client ID atau Folder ID belum diatur.' });
+      return;
+    }
+    if (!this.isConnected()) {
+      this.notifyListeners({ type: 'auth_needed', message: 'Perlu menghubungkan akun Google' });
+      return;
     }
 
     this.isSyncing = true;
