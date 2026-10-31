@@ -456,6 +456,16 @@ function bindEvents() {
   clientIdInput.addEventListener('change', () => {
     gdriveManager.setClientId(clientIdInput.value);
   });
+  
+  const toggleClientIdBtn = document.getElementById('toggle-client-id-btn');
+  if (toggleClientIdBtn) {
+    toggleClientIdBtn.addEventListener('click', () => {
+      const isPassword = clientIdInput.type === 'password';
+      clientIdInput.type = isPassword ? 'text' : 'password';
+      toggleClientIdBtn.style.color = isPassword ? 'var(--color-yellow)' : 'var(--color-sky)';
+    });
+  }
+
   authGoogleBtn.addEventListener('click', handleGoogleAuth);
 
   qualitySelect.addEventListener('change', () => {

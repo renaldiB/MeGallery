@@ -141,8 +141,16 @@
             <summary style="cursor: pointer; padding: 6px 0; opacity: 0.85;">⚙️ Opsi Pengembang (Client ID)</summary>
             <div class="form-group" style="margin-top: 8px;">
               <label class="form-label" for="client-id-input">Google OAuth Client ID</label>
-              <input type="text" id="client-id-input" class="form-input" placeholder="contoh: 123456789-xxx.apps.googleusercontent.com" spellcheck="false" autocomplete="off">
-              <p class="form-help">Opsional: Jika diisi di file <code>src/config.js</code>, pengguna tidak perlu mengisinya lagi.</p>
+              <div style="position: relative; display: flex; align-items: center;">
+                <input type="password" id="client-id-input" class="form-input" style="width: 100%; padding-right: 40px; font-family: monospace;" placeholder="contoh: 123456789-xxx.apps.googleusercontent.com" spellcheck="false" autocomplete="off">
+                <button type="button" id="toggle-client-id-btn" style="position: absolute; right: 10px; background: none; border: none; color: var(--color-sky); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px;" title="Lihat / Sembunyikan">
+                  <svg id="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+              <p class="form-help">Client ID terpasang otomatis dari environment server.</p>
             </div>
           </details>
 
