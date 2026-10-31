@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#12090B">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Kamera privat offline-first: foto langsung ke folder Google Drive tanpa masuk ke galeri perangkat.">
+  
+  <!-- Strict Content Security Policy -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.googleusercontent.com; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self';">
+
+  <title>MeGallery - Private Offline Camera</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Camera Viewfinder -->
+    <main class="viewfinder-container" aria-label="Viewfinder Kamera">
+      <video id="camera-video" playsinline autoplay muted></video>
+      <div id="shutter-flash" class="shutter-flash"></div>
+      
+      <div id="camera-placeholder" class="camera-placeholder" style="display: none;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#E5D0AC" stroke-width="2">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+          <line x1="1" y1="1" x2="23" y2="23" stroke="#FFFA8D" stroke-width="2.5"/>
+        </svg>
+        <p id="camera-error-msg">Akses kamera diperlukan. Harap izinkan izin kamera di browser Anda.</p>
+        <button id="retry-camera-btn" class="btn-primary" style="margin-top: 8px;">Aktifkan Kamera</button>
+      </div>
+    </main>
+
+    <!-- Top Navigation Deck -->
+    <header class="top-deck">
+      <div class="brand-section">
+        <span class="brand-title">MeGallery</span>
+      </div>
+
+      <div class="status-badges">
+        <div id="network-chip" class="status-chip" title="Status Jaringan">
+          <span id="network-dot" class="status-dot"></span>
+          <span id="network-text">Online</span>
+        </div>
+
+        <div id="sync-chip" class="status-chip" title="Status Sinkronisasi Google Drive">
+          <span id="sync-dot" class="status-dot"></span>
+          <span id="sync-text">Tersinkron</span>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <button id="torch-btn" class="btn-icon" title="Nyalakan Flash / Senter" style="display: none;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+        </button>
+
+        <button id="settings-btn" class="btn-icon" title="Pengaturan Google Drive">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Bottom Action Deck -->
+    <footer class="bottom-deck">
+      <!-- In-App Gallery Thumbnail Preview -->
+      <button id="gallery-btn" class="thumbnail-preview-btn" title="Buka Galeri Foto Terisolasi">
+        <div id="thumb-placeholder" style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FEF9E1" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+        </div>
+        <img id="thumb-img" alt="Foto Terbaru" style="display: none;">
+        <span id="gallery-badge-count" class="badge-count" style="display: none;">0</span>
+      </button>
+
+      <!-- Tactile Shutter Button -->
+      <div class="shutter-btn-wrapper">
+        <div class="shutter-outer-ring">
+          <button id="shutter-btn" class="shutter-inner-core" aria-label="Ambil Foto"></button>
+        </div>
+      </div>
+
+      <!-- Switch Camera (Front/Rear) -->
+      <button id="switch-cam-btn" class="switch-cam-btn" title="Ganti Kamera Depan/Belakang">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 10c0-4.418-3.582-8-8-8s-8 3.582-8 8c0 2.1 0.81 4.02 2.14 5.46L4 18h6v-6l-2.22 2.22C6.73 13.06 6 11.62 6 10c0-3.314 2.686-6 6-6s6 2.686 6 6c0 1.62-.73 3.06-1.78 4.22"/>
+          <polyline points="14 18 20 18 20 12"/>
+        </svg>
+      </button>
+    </footer>
+
+    <!-- ====================================================================
+         Modal 1: Settings Modal (Google Drive & OAuth Configuration)
+         ==================================================================== -->
+    <div id="settings-modal" class="modal-overlay">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ED7F1" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            <span>Pengaturan Google Drive</span>
+          </div>
+          <button id="close-settings-btn" class="btn-close" aria-label="Tutup">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Primary Setting: Dynamic Folder Link Input -->
+          <div class="form-group">
+            <label class="form-label" for="folder-link-input">Link Folder Google Drive</label>
+            <input type="text" id="folder-link-input" class="form-input" placeholder="Paste link folder: https://drive.google.com/drive/folders/..." spellcheck="false" autocomplete="off">
+            <p class="form-help">Tempel link folder Google Drive Anda. Folder ID akan dideteksi secara otomatis.</p>
+            <div id="folder-preview-wrap" style="display: none;">
+              <span class="folder-id-preview">Folder ID: <strong id="detected-folder-id">-</strong></span>
+            </div>
+          </div>
+
+          <!-- Connect / Authorize Button -->
+          <button id="auth-google-btn" class="btn-primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+              <polyline points="10 17 15 12 10 7"/>
+              <line x1="15" y1="12" x2="3" y2="12"/>
+            </svg>
+            <span id="auth-btn-label">Hubungkan Akun Google</span>
+          </button>
+
+          <!-- Advanced / Developer Option: Custom Client ID -->
+          <details style="margin-top: 4px; font-size: 12px; color: var(--color-sand);">
+            <summary style="cursor: pointer; padding: 6px 0; opacity: 0.85;">⚙️ Opsi Pengembang (Client ID)</summary>
+            <div class="form-group" style="margin-top: 8px;">
+              <label class="form-label" for="client-id-input">Google OAuth Client ID</label>
+              <input type="text" id="client-id-input" class="form-input" placeholder="contoh: 123456789-xxx.apps.googleusercontent.com" spellcheck="false" autocomplete="off">
+              <p class="form-help">Opsional: Jika diisi di file <code>src/config.js</code>, pengguna tidak perlu mengisinya lagi.</p>
+            </div>
+          </details>
+
+          <!-- Compression Quality Setting -->
+          <div class="form-group" style="margin-top: 4px;">
+            <label class="form-label" for="quality-select">Kualitas & Kompresi Foto</label>
+            <select id="quality-select" class="form-input" style="cursor: pointer;">
+              <option value="0.92">Maksimal (92% - Kualitas Terbaik)</option>
+              <option value="0.85" selected>Tinggi (85% - Rekomendasi, Hemat Kuota)</option>
+              <option value="0.75">Standar (75% - Cepat Terunggah)</option>
+            </select>
+          </div>
+
+          <!-- Storage Cleanup Action -->
+          <div style="border-top: 1px solid rgba(229, 208, 172, 0.15); padding-top: 12px; margin-top: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 12px; color: var(--color-sand);">Penyimpanan Lokal: <strong id="storage-used-text">0 MB</strong></span>
+              <button id="cleanup-synced-btn" class="btn-danger-outline">Bersihkan yang Tersinkron</button>
+            </div>
+            <p class="form-help">Foto yang berhasil masuk Google Drive dapat dibersihkan dari memori HP kapan saja.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         Modal 2: In-App Gallery Drawer (Isolated Photos & Status)
+         ==================================================================== -->
+    <div id="gallery-modal" class="modal-overlay">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E5D0AC" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <span>Galeri Privat</span>
+            <span id="gallery-total-count" style="font-size: 13px; color: var(--color-sand);">(0)</span>
+          </div>
+          <button id="close-gallery-btn" class="btn-close" aria-label="Tutup">✕</button>
+        </div>
+
+        <!-- Quick Gallery Toolbar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px;">
+          <span id="gallery-stat-badge" class="status-chip" style="font-size: 11px;">0 Menunggu Sinkron</span>
+          <button id="sync-now-btn" class="btn-primary" style="padding: 8px 14px; font-size: 12px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+            </svg>
+            <span>Sync Sekarang</span>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div id="gallery-grid" class="gallery-grid">
+            <!-- Dynamically populated photo cards -->
+          </div>
+
+          <div id="empty-gallery-msg" class="empty-gallery-state" style="display: none;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6D2323" stroke-width="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <p>Belum ada foto yang diambil.<br>Foto yang diambil di sini tersimpan aman dan tidak masuk ke galeri HP Anda.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         Modal 3: Single Photo Viewer & Management
+         ==================================================================== -->
+    <div id="photo-viewer-modal" class="modal-overlay">
+      <div class="modal-sheet" style="max-height: 94dvh;">
+        <div class="modal-header">
+          <div class="modal-title">
+            <span id="viewer-photo-title">Detail Foto</span>
+          </div>
+          <button id="close-viewer-btn" class="btn-close" aria-label="Tutup">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="photo-viewer-content">
+            <img id="viewer-img" class="photo-viewer-img" alt="Pratinjau Foto">
+          </div>
+
+          <div class="photo-viewer-meta">
+            <div style="display: flex; justify-content: space-between;">
+              <span id="viewer-date">Tanggal: -</span>
+              <span id="viewer-status-badge" class="photo-badge badge-pending">PENDING</span>
+            </div>
+            <span id="viewer-size">Ukuran: -</span>
+            <span id="viewer-folder">Folder GDrive: -</span>
+            <p id="viewer-error" style="color: #f87171; font-size: 11px; display: none;"></p>
+          </div>
+
+          <div class="photo-viewer-actions">
+            <button id="viewer-retry-upload-btn" class="btn-primary" style="flex: 1;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <span>Unggah ke Drive</span>
+            </button>
+            <button id="viewer-delete-btn" class="btn-danger-outline" style="padding: 10px 16px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+              <span>Hapus</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden canvas for off-thread image rendering -->
+    <canvas id="capture-canvas" style="display: none;"></canvas>
+  </div>
+
+  <script type="module" src="/src/app.js"></script>
+</body>
+</html>

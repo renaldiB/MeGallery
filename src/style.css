@@ -1,0 +1,678 @@
+/* ==========================================================================
+   MeGallery Design System & Tactile Camera Styles
+   Colors: #4ED7F1 (Neon Cyan), #6FE6FC (Sky Cyan), #A8F1FF (Ice Cyan), #FFFA8D (Lemon Yellow)
+   ========================================================================== */
+
+:root {
+  --color-cyan: #4ED7F1;
+  --color-sky: #6FE6FC;
+  --color-ice: #A8F1FF;
+  --color-yellow: #FFFA8D;
+  --color-dark-text: #081116;
+  
+  --color-navy: #142834;
+  --color-navy-dark: #0f1c24;
+  --color-obsidian: #081116;
+  --color-obsidian-surface: #0c1820;
+
+  --color-cream: var(--color-ice);
+  --color-sand: var(--color-sky);
+  --color-crimson: var(--color-cyan);
+  --color-crimson-hover: var(--color-sky);
+  --color-crimson-text: var(--color-dark-text);
+  --color-maroon: var(--color-navy);
+  --color-maroon-dark: var(--color-navy-dark);
+  
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  background-color: var(--color-obsidian);
+  color: var(--color-cream);
+  font-family: var(--font-family);
+  position: fixed;
+}
+
+#app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background-color: var(--color-obsidian);
+}
+
+/* --------------------------------------------------------------------------
+   Viewfinder & Camera Stream
+   -------------------------------------------------------------------------- */
+.viewfinder-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #000;
+  overflow: hidden;
+}
+
+#camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: translateZ(0);
+}
+
+/* Flash effect on shutter */
+.shutter-flash {
+  position: absolute;
+  inset: 0;
+  background-color: #fff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 50;
+  transition: opacity 80ms ease-out;
+}
+
+.shutter-flash.active {
+  opacity: 0.85;
+}
+
+/* Camera Placeholder / Error State */
+.camera-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+  background-color: var(--color-obsidian);
+  z-index: 2;
+}
+
+.camera-placeholder p {
+  color: var(--color-sand);
+  font-size: 14px;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+/* --------------------------------------------------------------------------
+   Top Navigation Deck
+   -------------------------------------------------------------------------- */
+.top-deck {
+  position: relative;
+  z-index: 10;
+  padding: calc(var(--safe-top) + 12px) 16px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(to bottom, rgba(8, 17, 22, 0.9) 0%, rgba(8, 17, 22, 0) 100%);
+  pointer-events: auto;
+}
+
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--color-ice);
+  text-shadow: 0 2px 10px rgba(78, 215, 241, 0.4);
+}
+
+.status-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(20, 40, 52, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(111, 230, 252, 0.3);
+  color: var(--color-ice);
+  transition: all 0.2s ease;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--color-cyan); /* Online cyan */
+}
+
+.status-dot.offline {
+  background-color: #ef4444; /* Offline red */
+}
+
+.status-dot.syncing {
+  background-color: var(--color-yellow); /* Yellow syncing pulse */
+  box-shadow: 0 0 8px var(--color-yellow);
+  animation: pulse-dot 1.2s infinite ease-in-out;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-icon {
+  background: rgba(20, 40, 52, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(111, 230, 252, 0.35);
+  color: var(--color-ice);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.btn-icon:active {
+  transform: scale(0.92);
+  background: var(--color-cyan);
+  color: var(--color-dark-text);
+  border-color: var(--color-cyan);
+}
+
+/* --------------------------------------------------------------------------
+   Bottom Control Deck (Shutter & Action Dock)
+   -------------------------------------------------------------------------- */
+.bottom-deck {
+  position: relative;
+  z-index: 10;
+  padding: 16px 24px calc(var(--safe-bottom) + 24px);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: linear-gradient(to top, rgba(8, 17, 22, 0.95) 0%, rgba(8, 17, 22, 0.5) 60%, rgba(8, 17, 22, 0) 100%);
+  pointer-events: auto;
+}
+
+/* Gallery Thumbnail Trigger */
+.thumbnail-preview-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid var(--color-sky);
+  background-color: var(--color-navy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.2s ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.thumbnail-preview-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbnail-preview-btn:active {
+  transform: scale(0.92);
+  border-color: var(--color-cyan);
+}
+
+.badge-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background-color: var(--color-yellow);
+  color: var(--color-dark-text);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--color-dark-text);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Big Tactile Shutter Button */
+.shutter-btn-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shutter-outer-ring {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  border: 4px solid var(--color-ice);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 0 24px rgba(78, 215, 241, 0.5), inset 0 0 12px rgba(78, 215, 241, 0.3);
+}
+
+.shutter-inner-core {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--color-yellow) 0%, var(--color-sky) 50%, var(--color-cyan) 100%);
+  border: none;
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.1s ease, filter 0.1s ease;
+  box-shadow: 0 4px 15px rgba(255, 250, 141, 0.4);
+}
+
+.shutter-btn-wrapper:active .shutter-outer-ring {
+  transform: scale(0.93);
+}
+
+.shutter-btn-wrapper:active .shutter-inner-core {
+  transform: scale(0.9);
+  filter: brightness(1.2);
+}
+
+/* Switch Camera Button */
+.switch-cam-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(20, 40, 52, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(111, 230, 252, 0.4);
+  color: var(--color-ice);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.switch-cam-btn:active {
+  transform: rotate(180deg) scale(0.9);
+  background: var(--color-cyan);
+  color: var(--color-dark-text);
+}
+
+/* --------------------------------------------------------------------------
+   Slide-Over Modals & Drawers (Gallery & Settings)
+   -------------------------------------------------------------------------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background-color: rgba(8, 17, 22, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-sheet {
+  background-color: var(--color-obsidian-surface);
+  border-top: 1.5px solid rgba(111, 230, 252, 0.35);
+  border-radius: 24px 24px 0 0;
+  padding: 20px 20px calc(var(--safe-bottom) + 24px);
+  max-height: 88dvh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(78, 215, 241, 0.15);
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.modal-overlay.active .modal-sheet {
+  transform: translateY(0);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(111, 230, 252, 0.2);
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-ice);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-close {
+  background: rgba(20, 40, 52, 0.6);
+  border: 1px solid rgba(111, 230, 252, 0.3);
+  color: var(--color-sky);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-close:active {
+  background: var(--color-cyan);
+  color: var(--color-dark-text);
+}
+
+.modal-body {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-right: 4px;
+}
+
+/* Form Styles */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-sand);
+}
+
+.form-input {
+  background-color: rgba(8, 17, 22, 0.9);
+  border: 1px solid rgba(111, 230, 252, 0.35);
+  color: var(--color-ice);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.form-input:focus {
+  border-color: var(--color-cyan);
+  box-shadow: 0 0 0 2px rgba(78, 215, 241, 0.35);
+}
+
+.form-help {
+  font-size: 11px;
+  color: rgba(168, 241, 255, 0.65);
+  line-height: 1.4;
+}
+
+.folder-id-preview {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(20, 40, 52, 0.7);
+  color: var(--color-yellow);
+  border: 1px solid rgba(111, 230, 252, 0.3);
+  font-family: monospace;
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+/* Buttons */
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-cyan), var(--color-sky));
+  color: var(--color-dark-text);
+  border: 1px solid rgba(168, 241, 255, 0.5);
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(78, 215, 241, 0.35);
+  transition: transform 0.15s, filter 0.15s;
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+  filter: brightness(1.15);
+}
+
+.btn-secondary {
+  background: rgba(20, 40, 52, 0.75);
+  color: var(--color-ice);
+  border: 1px solid rgba(111, 230, 252, 0.3);
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.15s;
+}
+
+.btn-secondary:active {
+  background: var(--color-cyan);
+  color: var(--color-dark-text);
+}
+
+.btn-danger-outline {
+  background: transparent;
+  color: #f87171;
+  border: 1px dashed rgba(239, 68, 68, 0.5);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.15s;
+}
+
+.btn-danger-outline:active {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+/* --------------------------------------------------------------------------
+   In-App Photo Gallery Grid
+   -------------------------------------------------------------------------- */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+@media (min-width: 600px) {
+  .gallery-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .gallery-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.photo-card {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: var(--color-navy);
+  border: 1px solid rgba(111, 230, 252, 0.25);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.2s ease;
+}
+
+.photo-card:active {
+  transform: scale(0.96);
+  border-color: var(--color-cyan);
+}
+
+.photo-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.badge-synced {
+  background-color: var(--color-cyan);
+  color: var(--color-dark-text);
+}
+
+.badge-pending {
+  background-color: var(--color-yellow);
+  color: var(--color-dark-text);
+}
+
+.badge-uploading {
+  background-color: var(--color-sky);
+  color: var(--color-dark-text);
+}
+
+.badge-failed {
+  background-color: #ef4444;
+  color: #fff;
+}
+
+.empty-gallery-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  text-align: center;
+  gap: 12px;
+  color: var(--color-sand);
+}
+
+.empty-gallery-state p {
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: 0.8;
+}
+
+/* --------------------------------------------------------------------------
+   Photo Detail Viewer Modal
+   -------------------------------------------------------------------------- */
+.photo-viewer-content {
+  position: relative;
+  width: 100%;
+  max-height: 60dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.photo-viewer-img {
+  max-width: 100%;
+  max-height: 60dvh;
+  object-fit: contain;
+}
+
+.photo-viewer-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-sand);
+  margin-top: 10px;
+}
+
+.photo-viewer-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}

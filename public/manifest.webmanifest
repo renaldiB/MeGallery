@@ -1,0 +1,19 @@
+{
+  "name": "MeGallery - Private Offline Camera",
+  "short_name": "MeGallery",
+  "description": "Ambil foto langsung ke Google Drive tanpa masuk ke galeri lokal perangkat. Mendukung offline penuh.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#12090B",
+  "theme_color": "#12090B",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
