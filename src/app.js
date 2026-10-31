@@ -64,12 +64,19 @@ const viewerFolder = document.getElementById('viewer-folder');
 const viewerError = document.getElementById('viewer-error');
 const viewerRetryUploadBtn = document.getElementById('viewer-retry-upload-btn');
 const viewerDeleteBtn = document.getElementById('viewer-delete-btn');
+const viewerContentBox = document.getElementById('viewer-content-box');
+
+// Fullscreen Lightbox Elements
+const fullscreenLightbox = document.getElementById('fullscreen-lightbox');
+const lightboxImg = document.getElementById('lightbox-img');
+const closeLightboxBtn = document.getElementById('close-lightbox-btn');
 
 // Settings Form
 const clientIdInput = document.getElementById('client-id-input');
 const folderLinkInput = document.getElementById('folder-link-input');
 const folderPreviewWrap = document.getElementById('folder-preview-wrap');
 const detectedFolderId = document.getElementById('detected-folder-id');
+const folderValidationBox = document.getElementById('folder-validation-box');
 const authGoogleBtn = document.getElementById('auth-google-btn');
 const authBtnLabel = document.getElementById('auth-btn-label');
 const qualitySelect = document.getElementById('quality-select');
@@ -194,6 +201,47 @@ function loadSettings() {
   qualitySelect.value = savedQuality;
 
   updateAuthButtonState();
+  validateTargetFolder();
+}
+
+let validationDebounce = null;
+async function validateTargetFolder() {
+  const folderId = gdriveManager.getTargetFolderId();
+  if (!folderValidationBox) return;
+
+  if (!folderId) {
+    folderValidationBox.style.display = 'none';
+    return;
+  }
+
+  if (!gdriveManager.isConnected()) {
+    folderValidationBox.style.display = 'block';
+    folderValidationBox.style.background = 'rgba(255, 250, 141, 0.1)';
+    folderValidationBox.style.border = '1px solid rgba(255, 250, 141, 0.3)';
+    folderValidationBox.style.color = 'var(--color-yellow)';
+    folderValidationBox.innerHTML = 'ℹ️ Folder terdeteksi. Hubungkan akun Google untuk verifikasi kecocokan izin folder.';
+    return;
+  }
+
+  folderValidationBox.style.display = 'block';
+  folderValidationBox.style.background = 'rgba(20, 40, 52, 0.6)';
+  folderValidationBox.style.border = '1px solid rgba(111, 230, 252, 0.3)';
+  folderValidationBox.style.color = 'var(--color-sky)';
+  folderValidationBox.textContent = 'Memverifikasi izin akun Google pada folder...';
+
+  const check = await gdriveManager.checkFolderAccess(folderId);
+
+  if (check.valid) {
+    folderValidationBox.style.background = 'rgba(78, 215, 241, 0.15)';
+    folderValidationBox.style.border = '1px solid var(--color-cyan)';
+    folderValidationBox.style.color = 'var(--color-ice)';
+    folderValidationBox.innerHTML = `✓ <strong>Izin Cocok:</strong> Folder <em>"${check.name || 'GDrive'}"</em> siap menerima unggahan dari akun Anda.`;
+  } else {
+    folderValidationBox.style.background = 'rgba(239, 68, 68, 0.15)';
+    folderValidationBox.style.border = '1px solid #ef4444';
+    folderValidationBox.style.color = '#fca5a5';
+    folderValidationBox.innerHTML = `⚠️ <strong>Peringatan Izin:</strong> ${check.error}`;
+  }
 }
 
 function handleFolderInputChange() {
@@ -210,6 +258,9 @@ function handleFolderInputChange() {
       gdriveManager.setTargetFolderId('');
     }
   }
+
+  if (validationDebounce) clearTimeout(validationDebounce);
+  validationDebounce = setTimeout(validateTargetFolder, 400);
 }
 
 function updateAuthButtonState() {
@@ -238,6 +289,7 @@ async function handleGoogleAuth() {
     authBtnLabel.textContent = 'Menghubungkan...';
     await gdriveManager.requestAccessToken('consent');
     updateAuthButtonState();
+    await validateTargetFolder();
     alert('Berhasil terhubung ke akun Google Drive!');
 
     // Trigger sync immediately if there are pending photos
@@ -350,7 +402,7 @@ async function openPhotoViewer(photoId) {
   viewerSize.textContent = `Ukuran: ${(photo.size / (1024 * 1024)).toFixed(2)} MB`;
   viewerFolder.textContent = `Folder GDrive: ${photo.targetFolderId || '-'}`;
 
-  viewerStatusBadge.className = `photo-badge badge-${photo.status}`;
+  viewerStatusBadge.className = `viewer-inline-badge badge-${photo.status}`;
   viewerStatusBadge.textContent = getStatusLabel(photo.status);
 
   if (photo.errorMsg) {
@@ -490,6 +542,7 @@ function bindEvents() {
 
   // Settings Modal Controls
   settingsBtn.addEventListener('click', () => {
+    validateTargetFolder();
     settingsModal.classList.add('active');
   });
   closeSettingsBtn.addEventListener('click', () => {
@@ -590,6 +643,27 @@ function bindEvents() {
     photoViewerModal.classList.remove('active');
     gdriveManager.syncQueue();
   });
+
+  // Fullscreen Clean Lightbox Controls (For Pure Screenshots)
+  if (viewerContentBox && fullscreenLightbox && lightboxImg) {
+    viewerContentBox.addEventListener('click', () => {
+      if (viewerImg && viewerImg.src) {
+        lightboxImg.src = viewerImg.src;
+        fullscreenLightbox.style.display = 'flex';
+      }
+    });
+
+    if (closeLightboxBtn) {
+      closeLightboxBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fullscreenLightbox.style.display = 'none';
+      });
+    }
+
+    fullscreenLightbox.addEventListener('click', () => {
+      fullscreenLightbox.style.display = 'none';
+    });
+  }
 
   // Close modals on clicking background backdrop
   [settingsModal, galleryModal, photoViewerModal].forEach((modal) => {

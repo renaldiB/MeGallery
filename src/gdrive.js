@@ -154,6 +154,66 @@ class GoogleDriveManager {
   }
 
   /**
+   * Validate if active account has Edit/Write permissions to target folder
+   */
+  async checkFolderAccess(folderId) {
+    const targetFolder = (folderId || this.targetFolderId || '').trim();
+    if (!targetFolder) {
+      return { valid: false, error: 'Link / ID folder belum diisi.' };
+    }
+    if (!this.isConnected()) {
+      return { valid: false, needsLogin: true, error: 'Akun Google belum terhubung.' };
+    }
+
+    try {
+      const token = await this.ensureValidToken();
+      const url = `https://www.googleapis.com/drive/v3/files/${targetFolder}?fields=id,name,capabilities,owners`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const canAdd = data.capabilities?.canAddChildren ?? true;
+        if (!canAdd) {
+          return {
+            valid: false,
+            code: 403,
+            name: data.name,
+            error: 'Akun Google Anda hanya memiliki izin Lihat (Viewer). Minta pemilik folder mengubah akses menjadi Editor.'
+          };
+        }
+        return { valid: true, name: data.name };
+      }
+
+      const errText = await res.text();
+      let msg = errText;
+      try {
+        const parsed = JSON.parse(errText);
+        msg = parsed.error?.message || errText;
+      } catch (_) {}
+
+      if (res.status === 404) {
+        return {
+          valid: false,
+          code: 404,
+          error: 'Folder tidak ditemukan. Pastikan link folder Google Drive benar.'
+        };
+      } else if (res.status === 403) {
+        return {
+          valid: false,
+          code: 403,
+          error: 'Akses ditolak: Akun Google yang Anda gunakan tidak memiliki akses ke folder ini. Pastikan folder diset "Anyone with link" + "Editor".'
+        };
+      }
+
+      return { valid: false, code: res.status, error: `Validasi gagal (${res.status}): ${msg}` };
+    } catch (err) {
+      return { valid: false, error: err.message };
+    }
+  }
+
+  /**
    * Upload single Blob directly to Google Drive via multipart upload
    */
   async uploadPhoto({ blob, filename, folderId }) {

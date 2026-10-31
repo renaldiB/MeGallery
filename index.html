@@ -147,6 +147,9 @@
               </div>
               <span style="font-size: 10px; opacity: 0.8; display: block; margin-top: 4px;">*Tanpa akses Editor, Google akan menolak foto dari akun rekan Anda.</span>
             </div>
+
+            <!-- Live Validation Box -->
+            <div id="folder-validation-box" style="display: none; padding: 8px 12px; border-radius: 8px; font-size: 11px; margin-top: 8px; line-height: 1.4;"></div>
           </div>
 
           <!-- Connect / Authorize Button -->
@@ -249,23 +252,30 @@
          ==================================================================== -->
     <div id="photo-viewer-modal" class="modal-overlay">
       <div class="modal-sheet" style="max-height: 94dvh;">
-        <div class="modal-header">
-          <div class="modal-title">
-            <span id="viewer-photo-title">Detail Foto</span>
+        <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+            <span id="viewer-status-badge" class="viewer-inline-badge">DRIVE ✓</span>
+            <span id="viewer-photo-title" style="font-size: 13px; font-weight: 700; color: var(--color-ice); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Detail Foto</span>
           </div>
-          <button id="close-viewer-btn" class="btn-close" aria-label="Tutup">✕</button>
+          <button id="close-viewer-btn" class="btn-close" aria-label="Tutup" style="flex-shrink: 0;">✕</button>
         </div>
 
         <div class="modal-body">
-          <div class="photo-viewer-content">
+          <div class="photo-viewer-content" id="viewer-content-box" style="cursor: pointer; position: relative;" title="Ketuk untuk tampilan layar penuh">
             <img id="viewer-img" class="photo-viewer-img" alt="Pratinjau Foto">
+            <div style="position: absolute; bottom: 8px; right: 8px; background: rgba(8, 17, 22, 0.8); border: 1px solid rgba(111, 230, 252, 0.4); border-radius: 6px; padding: 4px 8px; font-size: 10px; color: var(--color-ice); display: flex; align-items: center; gap: 4px; pointer-events: none;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 3 21 3 21 9"/>
+                <polyline points="9 21 3 21 3 15"/>
+                <line x1="21" y1="3" x2="14" y2="10"/>
+                <line x1="3" y1="21" x2="10" y2="14"/>
+              </svg>
+              <span>Layar Penuh</span>
+            </div>
           </div>
 
           <div class="photo-viewer-meta">
-            <div style="display: flex; justify-content: space-between;">
-              <span id="viewer-date">Tanggal: -</span>
-              <span id="viewer-status-badge" class="photo-badge badge-pending">PENDING</span>
-            </div>
+            <span id="viewer-date">Tanggal: -</span>
             <span id="viewer-size">Ukuran: -</span>
             <span id="viewer-folder">Folder GDrive: -</span>
             <p id="viewer-error" style="color: #f87171; font-size: 11px; display: none;"></p>
@@ -290,6 +300,15 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- ====================================================================
+         Modal 4: Fullscreen Clean Image Lightbox (Bersih untuk Screenshot)
+         ==================================================================== -->
+    <div id="fullscreen-lightbox" class="fullscreen-lightbox" style="display: none;">
+      <button id="close-lightbox-btn" class="lightbox-close-btn" aria-label="Tutup Layar Penuh">✕</button>
+      <img id="lightbox-img" class="lightbox-img" alt="Foto Layar Penuh">
+      <div class="lightbox-hint">Ketuk gambar atau tombol ✕ untuk kembali</div>
     </div>
 
     <!-- Hidden canvas for off-thread image rendering -->
