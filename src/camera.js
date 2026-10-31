@@ -96,6 +96,54 @@ export class CameraController {
   }
 
   /**
+   * Focus camera at specific coordinates
+   * @param {number} x Click X coordinate
+   * @param {number} y Click Y coordinate
+   * @param {number} containerWidth Width of viewfinder
+   * @param {number} containerHeight Height of viewfinder
+   */
+  async focusAt(x, y, containerWidth, containerHeight) {
+    if (!this.stream) return;
+    const track = this.stream.getVideoTracks()[0];
+    if (!track) return;
+
+    // Trigger subtle haptic pulse
+    if ('vibrate' in navigator) {
+      try {
+        navigator.vibrate([12]);
+      } catch (_) {}
+    }
+
+    const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+    const constraints = {};
+
+    // Normalize coordinates (0.0 to 1.0)
+    const normX = Math.min(Math.max(x / containerWidth, 0), 1);
+    const normY = Math.min(Math.max(y / containerHeight, 0), 1);
+
+    if (capabilities.pointsOfInterest) {
+      constraints.pointsOfInterest = [{ x: normX, y: normY }];
+    }
+
+    if (capabilities.focusMode) {
+      if (capabilities.focusMode.includes('continuous')) {
+        constraints.focusMode = 'continuous';
+      } else if (capabilities.focusMode.includes('single-shot')) {
+        constraints.focusMode = 'single-shot';
+      }
+    }
+
+    if (Object.keys(constraints).length > 0) {
+      try {
+        await track.applyConstraints({ advanced: [constraints] });
+      } catch (err) {
+        // Many mobile browsers emulate focus visually while stream maintains best autofocus
+        console.debug('Hardware focus constraint application:', err.message);
+      }
+    }
+  }
+
+  /**
    * Capture photo frame directly into in-memory Blob
    * @param {number} quality JPEG quality between 0.1 and 1.0 (default 0.88)
    * @returns {Promise<Blob>}

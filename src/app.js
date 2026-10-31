@@ -18,6 +18,8 @@ import { extractFolderId, isValidFolderId } from './utils/gdriveLink.js';
 // DOM Elements
 const videoEl = document.getElementById('camera-video');
 const canvasEl = document.getElementById('capture-canvas');
+const viewfinderEl = document.getElementById('viewfinder');
+const focusReticle = document.getElementById('focus-reticle');
 const shutterBtn = document.getElementById('shutter-btn');
 const shutterFlash = document.getElementById('shutter-flash');
 const switchCamBtn = document.getElementById('switch-cam-btn');
@@ -425,6 +427,44 @@ function setupSyncMonitoring() {
 // Event Listeners Binding
 // ----------------------------------------------------------------------------
 function bindEvents() {
+  // Tap-to-Focus on Viewfinder
+  let focusTimeout = null;
+  if (viewfinderEl && focusReticle) {
+    viewfinderEl.addEventListener('pointerdown', (e) => {
+      // Ignore clicks on control overlays or modals
+      if (
+        e.target.closest('.top-deck') ||
+        e.target.closest('.bottom-deck') ||
+        e.target.closest('.modal-overlay') ||
+        e.target.closest('#camera-placeholder')
+      ) {
+        return;
+      }
+
+      const rect = viewfinderEl.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      focusReticle.style.left = `${x}px`;
+      focusReticle.style.top = `${y}px`;
+
+      // Trigger crisp focus lock animation
+      focusReticle.classList.remove('active');
+      void focusReticle.offsetWidth; // Force reflow
+      focusReticle.classList.add('active');
+
+      if (focusTimeout) clearTimeout(focusTimeout);
+      focusTimeout = setTimeout(() => {
+        focusReticle.classList.remove('active');
+      }, 1250);
+
+      // Trigger hardware lens autofocus
+      if (camera) {
+        camera.focusAt(x, y, rect.width, rect.height);
+      }
+    });
+  }
+
   // Camera & Shutter Controls
   shutterBtn.addEventListener('click', handleShutter);
   switchCamBtn.addEventListener('click', async () => {

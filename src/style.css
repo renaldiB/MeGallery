@@ -100,6 +100,69 @@ html, body {
   opacity: 0.85;
 }
 
+/* Tap to Focus Reticle */
+.focus-reticle {
+  position: absolute;
+  width: 72px;
+  height: 72px;
+  pointer-events: none;
+  z-index: 30;
+  transform: translate(-50%, -50%) scale(1.4);
+  opacity: 0;
+}
+
+.focus-reticle.active {
+  animation: focus-lock 1.2s forwards ease-out;
+}
+
+.focus-reticle-box {
+  width: 100%;
+  height: 100%;
+  border: 2px solid var(--color-yellow);
+  border-radius: 10px;
+  position: relative;
+  box-shadow: 0 0 14px rgba(255, 250, 141, 0.65), inset 0 0 8px rgba(78, 215, 241, 0.3);
+}
+
+/* Center crosshair dot */
+.focus-reticle-box::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--color-yellow);
+  box-shadow: 0 0 6px var(--color-yellow);
+}
+
+@keyframes focus-lock {
+  0% {
+    transform: translate(-50%, -50%) scale(1.4);
+    opacity: 0;
+  }
+  20% {
+    transform: translate(-50%, -50%) scale(0.95);
+    opacity: 1;
+    border-color: var(--color-yellow);
+  }
+  35% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  70% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    border-color: var(--color-cyan);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0.92);
+    opacity: 0;
+  }
+}
+
 /* Camera Placeholder / Error State */
 .camera-placeholder {
   position: absolute;
