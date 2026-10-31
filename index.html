@@ -9,7 +9,7 @@
   <meta name="description" content="Kamera privat offline-first: foto langsung ke folder Google Drive tanpa masuk ke galeri perangkat.">
   
   <!-- Strict Content Security Policy -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.googleusercontent.com; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.googleusercontent.com; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://script.google.com https://script.googleusercontent.com; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self';">
 
   <title>MeGallery - Private Offline Camera</title>
   <link rel="manifest" href="/manifest.webmanifest">
@@ -161,6 +161,16 @@
             </svg>
             <span id="auth-btn-label">Hubungkan Akun Google</span>
           </button>
+
+          <!-- Zero-Login Google Apps Script Webhook Option -->
+          <details style="margin-top: 4px; font-size: 12px; color: var(--color-sand);" id="webhook-details">
+            <summary style="cursor: pointer; padding: 6px 0; opacity: 0.95; color: var(--color-yellow);">⚡ Mode Bebas Login (Google Apps Script Webhook)</summary>
+            <div class="form-group" style="margin-top: 8px;">
+              <label class="form-label" for="webhook-url-input">Google Apps Script Web App URL</label>
+              <input type="text" id="webhook-url-input" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" spellcheck="false" autocomplete="off">
+              <p class="form-help">Jika link Web App diisi di sini (atau di Netlify <code>VITE_GAS_WEBHOOK_URL</code>), semua rekan kantor bisa langsung foto tanpa popup login sama sekali.</p>
+            </div>
+          </details>
 
           <!-- Advanced / Developer Option: Custom Client ID -->
           <details style="margin-top: 4px; font-size: 12px; color: var(--color-sand);">

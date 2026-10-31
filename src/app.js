@@ -73,6 +73,7 @@ const closeLightboxBtn = document.getElementById('close-lightbox-btn');
 
 // Settings Form
 const clientIdInput = document.getElementById('client-id-input');
+const webhookUrlInput = document.getElementById('webhook-url-input');
 const folderLinkInput = document.getElementById('folder-link-input');
 const folderPreviewWrap = document.getElementById('folder-preview-wrap');
 const detectedFolderId = document.getElementById('detected-folder-id');
@@ -115,8 +116,8 @@ async function initApp() {
   setupNetworkMonitoring();
   setupSyncMonitoring();
 
-  // If online, configured, AND authenticated, auto sync pending queue
-  if (navigator.onLine && gdriveManager.getClientId() && gdriveManager.getTargetFolderId() && gdriveManager.isConnected()) {
+  // If online, configured, AND (authenticated OR has webhook), auto sync pending queue
+  if (navigator.onLine && gdriveManager.getTargetFolderId() && (gdriveManager.isConnected() || gdriveManager.hasWebhook())) {
     gdriveManager.syncQueue();
   }
 }
@@ -175,8 +176,8 @@ async function handleShutter() {
     updateThumbnailPreview(savedPhoto.thumbnail);
     await refreshGalleryOverview();
 
-    // 5. Trigger sync if online, configured, and authenticated
-    if (navigator.onLine && gdriveManager.getClientId() && targetFolder && gdriveManager.isConnected()) {
+    // 5. Trigger sync if online, configured, and (authenticated or webhook active)
+    if (navigator.onLine && targetFolder && (gdriveManager.isConnected() || gdriveManager.hasWebhook())) {
       gdriveManager.syncQueue();
     }
   } catch (err) {
@@ -193,6 +194,7 @@ async function handleShutter() {
 function loadSettings() {
   const savedClientId = gdriveManager.getClientId();
   const savedFolderId = gdriveManager.getTargetFolderId();
+  const savedWebhook = gdriveManager.getWebhookUrl();
   const savedQuality = localStorage.getItem('megallery_quality') || '0.85';
 
   if (savedClientId) clientIdInput.value = savedClientId;
@@ -200,6 +202,9 @@ function loadSettings() {
     folderLinkInput.value = savedFolderId;
     detectedFolderId.textContent = savedFolderId;
     folderPreviewWrap.style.display = 'block';
+  }
+  if (savedWebhook && webhookUrlInput) {
+    webhookUrlInput.value = savedWebhook;
   }
   qualitySelect.value = savedQuality;
 
@@ -217,7 +222,12 @@ function validateTargetFolder() {
   }
 
   folderValidationBox.style.display = 'block';
-  if (gdriveManager.isConnected()) {
+  if (gdriveManager.hasWebhook()) {
+    folderValidationBox.style.background = 'rgba(78, 215, 241, 0.15)';
+    folderValidationBox.style.border = '1px solid var(--color-cyan)';
+    folderValidationBox.style.color = 'var(--color-ice)';
+    folderValidationBox.innerHTML = `✓ <strong>Mode Bebas Login Aktif:</strong> Foto otomatis diunggah ke folder <code>${folderId}</code> tanpa popup login sama sekali.`;
+  } else if (gdriveManager.isConnected()) {
     folderValidationBox.style.background = 'rgba(78, 215, 241, 0.15)';
     folderValidationBox.style.border = '1px solid var(--color-cyan)';
     folderValidationBox.style.color = 'var(--color-ice)';
@@ -226,12 +236,22 @@ function validateTargetFolder() {
     folderValidationBox.style.background = 'rgba(255, 250, 141, 0.1)';
     folderValidationBox.style.border = '1px solid rgba(255, 250, 141, 0.3)';
     folderValidationBox.style.color = 'var(--color-yellow)';
-    folderValidationBox.innerHTML = `ℹ️ <strong>Target Folder Terdeteksi:</strong> <code>${folderId}</code><br><span style="font-size: 10px; opacity: 0.85;">Klik tombol "Hubungkan Akun Google" di atas untuk mulai sinkronisasi.</span>`;
+    folderValidationBox.innerHTML = `ℹ️ <strong>Target Folder Terdeteksi:</strong> <code>${folderId}</code><br><span style="font-size: 10px; opacity: 0.85;">Klik tombol "Hubungkan Akun Google" di atas atau isi Webhook URL untuk sinkronisasi.</span>`;
   }
 }
 
 function handleFolderInputChange() {
   const input = folderLinkInput.value.trim();
+
+  // If user pasted Google Apps Script Web App URL here by mistake, auto-assign
+  if (input.includes('script.google.com/macros/s/')) {
+    gdriveManager.setWebhookUrl(input);
+    if (webhookUrlInput) webhookUrlInput.value = input;
+    updateAuthButtonState();
+    validateTargetFolder();
+    return;
+  }
+
   const folderId = extractFolderId(input);
 
   if (folderId) {
@@ -249,12 +269,16 @@ function handleFolderInputChange() {
 }
 
 function updateAuthButtonState() {
-  if (gdriveManager.isConnected()) {
+  if (gdriveManager.hasWebhook()) {
+    authBtnLabel.textContent = 'Mode Webhook Bebas Login Aktif ✓';
+    authGoogleBtn.style.background = 'rgba(78, 215, 241, 0.25)';
+    authGoogleBtn.style.borderColor = 'var(--color-cyan)';
+  } else if (gdriveManager.isConnected()) {
     authBtnLabel.textContent = 'Google Drive Terhubung ✓';
     authGoogleBtn.style.background = 'rgba(34, 197, 94, 0.3)';
     authGoogleBtn.style.borderColor = '#22c55e';
   } else {
-    authBtnLabel.textContent = 'Hubungkan Google Drive';
+    authBtnLabel.textContent = 'Hubungkan Akun Google';
     authGoogleBtn.style.background = '';
     authGoogleBtn.style.borderColor = '';
   }
@@ -422,8 +446,8 @@ function setupNetworkMonitoring() {
     if (navigator.onLine) {
       networkDot.className = 'status-dot';
       networkText.textContent = 'Online';
-      // Attempt auto sync when back online (if already authenticated)
-      if (gdriveManager.getClientId() && gdriveManager.getTargetFolderId() && gdriveManager.isConnected()) {
+      // Attempt auto sync when back online (if authenticated or webhook active)
+      if (gdriveManager.getTargetFolderId() && (gdriveManager.isConnected() || gdriveManager.hasWebhook())) {
         gdriveManager.syncQueue();
       }
     } else {
@@ -538,6 +562,15 @@ function bindEvents() {
   });
 
   folderLinkInput.addEventListener('input', handleFolderInputChange);
+  
+  if (webhookUrlInput) {
+    webhookUrlInput.addEventListener('change', () => {
+      gdriveManager.setWebhookUrl(webhookUrlInput.value);
+      updateAuthButtonState();
+      validateTargetFolder();
+    });
+  }
+
   clientIdInput.addEventListener('change', () => {
     gdriveManager.setClientId(clientIdInput.value);
   });
@@ -584,7 +617,7 @@ function bindEvents() {
       alert('Tentukan folder Google Drive di menu Pengaturan terlebih dahulu.');
       return;
     }
-    if (!gdriveManager.isConnected()) {
+    if (!gdriveManager.hasWebhook() && !gdriveManager.isConnected()) {
       try {
         await gdriveManager.requestAccessToken('consent');
         updateAuthButtonState();
@@ -629,7 +662,7 @@ function bindEvents() {
       alert('Perangkat sedang offline.');
       return;
     }
-    if (!gdriveManager.isConnected()) {
+    if (!gdriveManager.hasWebhook() && !gdriveManager.isConnected()) {
       try {
         await gdriveManager.requestAccessToken('consent');
         updateAuthButtonState();

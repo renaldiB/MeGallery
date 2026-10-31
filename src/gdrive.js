@@ -4,7 +4,7 @@
  */
 
 import { getPendingPhotos, updatePhotoStatus } from './storage.js';
-import { DEFAULT_CLIENT_ID } from './config.js';
+import { DEFAULT_CLIENT_ID, DEFAULT_WEBHOOK_URL } from './config.js';
 
 const GIS_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
 const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
@@ -19,10 +19,24 @@ class GoogleDriveManager {
     this.isSyncing = false;
     this.clientId = localStorage.getItem('megallery_client_id') || DEFAULT_CLIENT_ID || '';
     this.targetFolderId = localStorage.getItem('megallery_folder_id') || '';
+    this.webhookUrl = localStorage.getItem('megallery_webhook_url') || DEFAULT_WEBHOOK_URL || '';
     this.syncListeners = new Set();
 
     // Restore cached token from sessionStorage if still valid
     this.loadCachedToken();
+  }
+
+  setWebhookUrl(url) {
+    this.webhookUrl = (url || '').trim();
+    localStorage.setItem('megallery_webhook_url', this.webhookUrl);
+  }
+
+  getWebhookUrl() {
+    return this.webhookUrl || DEFAULT_WEBHOOK_URL || '';
+  }
+
+  hasWebhook() {
+    return !!this.getWebhookUrl();
   }
 
   loadCachedToken() {
@@ -214,9 +228,61 @@ class GoogleDriveManager {
   }
 
   /**
-   * Upload single Blob directly to Google Drive via multipart upload
+   * Upload photo via Google Apps Script Webhook (Zero Login / Zero Popup)
+   */
+  async uploadPhotoViaWebhook({ blob, filename, folderId }) {
+    const url = this.getWebhookUrl();
+    if (!url) {
+      throw new Error('Google Apps Script Webhook URL belum diatur.');
+    }
+    const targetFolder = (folderId || this.targetFolderId || '').trim();
+
+    // Convert blob to base64
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const res = reader.result;
+        resolve(res.split(',')[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    const payload = {
+      folderId: targetFolder,
+      filename: filename,
+      base64: base64
+    };
+
+    // Use text/plain to avoid CORS preflight blocking in Google Apps Script
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Upload webhook gagal (HTTP ${response.status})`);
+    }
+
+    const data = await response.json();
+    if (data.status !== 'success') {
+      throw new Error(`Google Apps Script error: ${data.message || 'Gagal menyimpan file'}`);
+    }
+
+    return { id: data.id, name: filename };
+  }
+
+  /**
+   * Upload single Blob directly to Google Drive via multipart upload or webhook
    */
   async uploadPhoto({ blob, filename, folderId }) {
+    if (this.hasWebhook()) {
+      return this.uploadPhotoViaWebhook({ blob, filename, folderId });
+    }
+
     const token = await this.ensureValidToken();
     const targetFolder = (folderId || this.targetFolderId || '').trim();
 
@@ -290,13 +356,22 @@ class GoogleDriveManager {
       this.notifyListeners({ type: 'offline', message: 'Perangkat offline, sinkronisasi ditunda.' });
       return;
     }
-    if (!this.clientId || !this.targetFolderId) {
-      this.notifyListeners({ type: 'unconfigured', message: 'Client ID atau Folder ID belum diatur.' });
-      return;
-    }
-    if (!this.isConnected()) {
-      this.notifyListeners({ type: 'auth_needed', message: 'Perlu menghubungkan akun Google' });
-      return;
+
+    const useWebhook = this.hasWebhook();
+    if (!useWebhook) {
+      if (!this.clientId || !this.targetFolderId) {
+        this.notifyListeners({ type: 'unconfigured', message: 'Client ID atau Folder ID belum diatur.' });
+        return;
+      }
+      if (!this.isConnected()) {
+        this.notifyListeners({ type: 'auth_needed', message: 'Perlu menghubungkan akun Google' });
+        return;
+      }
+    } else {
+      if (!this.targetFolderId) {
+        this.notifyListeners({ type: 'unconfigured', message: 'Folder ID belum diatur.' });
+        return;
+      }
     }
 
     this.isSyncing = true;
