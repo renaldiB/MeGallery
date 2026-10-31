@@ -20,12 +20,45 @@ class GoogleDriveManager {
     this.clientId = localStorage.getItem('megallery_client_id') || DEFAULT_CLIENT_ID || '';
     this.targetFolderId = localStorage.getItem('megallery_folder_id') || '';
     this.syncListeners = new Set();
+
+    // Restore cached token from sessionStorage if still valid
+    this.loadCachedToken();
+  }
+
+  loadCachedToken() {
+    try {
+      const savedToken = sessionStorage.getItem('megallery_token');
+      const savedExp = parseInt(sessionStorage.getItem('megallery_token_exp') || '0', 10);
+      if (savedToken && Date.now() < savedExp) {
+        this.accessToken = savedToken;
+        this.tokenExpiresAt = savedExp;
+      }
+    } catch (_) {}
+  }
+
+  saveCachedToken(token, expiresInSeconds = 3600) {
+    this.accessToken = token;
+    this.tokenExpiresAt = Date.now() + (expiresInSeconds * 1000) - 60000; // 1 min buffer
+    try {
+      sessionStorage.setItem('megallery_token', this.accessToken);
+      sessionStorage.setItem('megallery_token_exp', String(this.tokenExpiresAt));
+    } catch (_) {}
+  }
+
+  clearToken() {
+    this.accessToken = null;
+    this.tokenExpiresAt = 0;
+    try {
+      sessionStorage.removeItem('megallery_token');
+      sessionStorage.removeItem('megallery_token_exp');
+    } catch (_) {}
   }
 
   setClientId(clientId) {
     this.clientId = (clientId || '').trim();
     localStorage.setItem('megallery_client_id', this.clientId);
-    this.tokenClient = null; // Re-init needed
+    this.tokenClient = null;
+    this.clearToken();
   }
 
   getClientId() {
@@ -71,7 +104,7 @@ class GoogleDriveManager {
   }
 
   /**
-   * Request user authorization token via GIS
+   * Request user authorization token via GIS (MUST be triggered by user gesture)
    */
   async requestAccessToken(prompt = '') {
     if (!this.clientId) {
@@ -89,14 +122,13 @@ class GoogleDriveManager {
             if (response.error) {
               return reject(new Error('Auth error: ' + response.error));
             }
-            this.accessToken = response.access_token;
-            // Token typically valid for 3600 seconds
-            const expiresIn = (response.expires_in || 3600) * 1000;
-            this.tokenExpiresAt = Date.now() + expiresIn - 60000; // 1 min buffer
+            const expiresIn = response.expires_in ? parseInt(response.expires_in, 10) : 3600;
+            this.saveCachedToken(response.access_token, expiresIn);
             resolve(this.accessToken);
           }
         });
 
+        // Request token (triggers Google popup window)
         this.tokenClient.requestAccessToken({ prompt: prompt || '' });
       } catch (err) {
         reject(err);
@@ -107,19 +139,18 @@ class GoogleDriveManager {
   /**
    * Check if active access token is valid
    */
-  async ensureValidToken() {
-    if (this.accessToken && Date.now() < this.tokenExpiresAt) {
-      return this.accessToken;
-    }
-    // Token expired or missing, request new token silently if possible
-    return this.requestAccessToken('');
+  isConnected() {
+    return !!(this.accessToken && Date.now() < this.tokenExpiresAt);
   }
 
   /**
-   * Check if Google Auth is connected
+   * Ensure token exists without triggering unprompted popups
    */
-  isConnected() {
-    return !!(this.accessToken && Date.now() < this.tokenExpiresAt);
+  async ensureValidToken() {
+    if (this.isConnected()) {
+      return this.accessToken;
+    }
+    throw new Error('Sesi Google Drive belum aktif. Klik "Hubungkan Akun Google" di Pengaturan.');
   }
 
   /**
@@ -127,10 +158,10 @@ class GoogleDriveManager {
    */
   async uploadPhoto({ blob, filename, folderId }) {
     const token = await this.ensureValidToken();
-    const targetFolder = folderId || this.targetFolderId;
+    const targetFolder = (folderId || this.targetFolderId || '').trim();
 
     if (!targetFolder) {
-      throw new Error('Folder tujuan Google Drive belum dipilih. Tentukan folder di Pengaturan.');
+      throw new Error('Folder tujuan Google Drive belum dipilih. Masukkan link folder di Pengaturan.');
     }
 
     const metadata = {
@@ -139,26 +170,28 @@ class GoogleDriveManager {
       parents: [targetFolder]
     };
 
-    const boundary = '-------MeGalleryBoundary' + Math.random().toString(36).substring(2);
-    const delimiter = `\r\n--${boundary}\r\n`;
-    const closeDelimiter = `\r\n--${boundary}--`;
+    // Strict RFC 2046 Multipart Boundary (no leading CRLF before first part)
+    const boundary = 'MeGalleryBoundary' + Math.random().toString(36).substring(2, 10);
 
-    const metadataPart = `${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}`;
-    const mediaPartHeader = `${delimiter}Content-Type: image/jpeg\r\n\r\n`;
+    const bodyParts = [
+      `--${boundary}\r\n`,
+      'Content-Type: application/json; charset=UTF-8\r\n\r\n',
+      JSON.stringify(metadata),
+      `\r\n--${boundary}\r\n`,
+      'Content-Type: image/jpeg\r\n\r\n',
+      blob,
+      `\r\n--${boundary}--\r\n`
+    ];
 
-    // Construct composite multipart payload
-    const metadataBlob = new Blob([metadataPart], { type: 'text/plain' });
-    const mediaHeaderBlob = new Blob([mediaPartHeader], { type: 'text/plain' });
-    const closeBlob = new Blob([closeDelimiter], { type: 'text/plain' });
-
-    const multipartPayload = new Blob([metadataBlob, mediaHeaderBlob, blob, closeBlob], {
+    const multipartPayload = new Blob(bodyParts, {
       type: `multipart/related; boundary=${boundary}`
     });
 
     const response = await fetch(DRIVE_UPLOAD_URL, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': `multipart/related; boundary=${boundary}`
       },
       body: multipartPayload
     });
@@ -166,15 +199,26 @@ class GoogleDriveManager {
     if (!response.ok) {
       const errorText = await response.text();
       let parsedMsg = errorText;
+      let errorCode = response.status;
       try {
         const errJson = JSON.parse(errorText);
         parsedMsg = errJson.error?.message || errorText;
       } catch (_) {}
-      throw new Error(`Upload GDrive gagal (${response.status}): ${parsedMsg}`);
+
+      if (errorCode === 401) {
+        this.clearToken();
+        throw new Error('Sesi login Google kedaluwarsa. Silakan klik "Hubungkan Akun Google" kembali.');
+      } else if (errorCode === 403) {
+        throw new Error(`Akses ditolak (${parsedMsg}). Pastikan folder diset "Anyone with link" + "Editor" dan Google Drive API sudah diaktifkan di Google Cloud.`);
+      } else if (errorCode === 404) {
+        throw new Error(`Folder tidak ditemukan di Google Drive (${parsedMsg}). Periksa link folder Anda.`);
+      }
+
+      throw new Error(`Upload GDrive gagal (${errorCode}): ${parsedMsg}`);
     }
 
     const result = await response.json();
-    return result; // contains id, name, etc.
+    return result;
   }
 
   /**
@@ -190,20 +234,20 @@ class GoogleDriveManager {
       this.notifyListeners({ type: 'unconfigured', message: 'Client ID atau Folder ID belum diatur.' });
       return;
     }
+    if (!this.isConnected()) {
+      this.notifyListeners({ type: 'auth_needed', message: 'Perlu menghubungkan akun Google' });
+      return;
+    }
 
     this.isSyncing = true;
     this.notifyListeners({ type: 'sync_start' });
 
     try {
-      // Ensure token is ready before loop
-      await this.ensureValidToken();
-
       const pending = await getPendingPhotos();
       let successCount = 0;
       let failCount = 0;
 
       for (let i = 0; i < pending.length; i++) {
-        // Stop if disconnected mid-queue
         if (!navigator.onLine) {
           this.notifyListeners({ type: 'offline_mid_sync' });
           break;

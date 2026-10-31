@@ -105,8 +105,8 @@ async function initApp() {
   setupNetworkMonitoring();
   setupSyncMonitoring();
 
-  // If online and configured, auto sync pending queue
-  if (navigator.onLine && gdriveManager.getClientId() && gdriveManager.getTargetFolderId()) {
+  // If online, configured, AND authenticated, auto sync pending queue
+  if (navigator.onLine && gdriveManager.getClientId() && gdriveManager.getTargetFolderId() && gdriveManager.isConnected()) {
     gdriveManager.syncQueue();
   }
 }
@@ -165,8 +165,8 @@ async function handleShutter() {
     updateThumbnailPreview(savedPhoto.thumbnail);
     await refreshGalleryOverview();
 
-    // 5. Trigger sync if online and configured
-    if (navigator.onLine && gdriveManager.getClientId() && targetFolder) {
+    // 5. Trigger sync if online, configured, and authenticated
+    if (navigator.onLine && gdriveManager.getClientId() && targetFolder && gdriveManager.isConnected()) {
       gdriveManager.syncQueue();
     }
   } catch (err) {
@@ -382,8 +382,8 @@ function setupNetworkMonitoring() {
     if (navigator.onLine) {
       networkDot.className = 'status-dot';
       networkText.textContent = 'Online';
-      // Attempt auto sync when back online
-      if (gdriveManager.getClientId() && gdriveManager.getTargetFolderId()) {
+      // Attempt auto sync when back online (if already authenticated)
+      if (gdriveManager.getClientId() && gdriveManager.getTargetFolderId() && gdriveManager.isConnected()) {
         gdriveManager.syncQueue();
       }
     } else {
@@ -403,6 +403,10 @@ function setupSyncMonitoring() {
       case 'sync_start':
         syncDot.className = 'status-dot syncing';
         syncText.textContent = 'Mengunggah...';
+        break;
+      case 'auth_needed':
+        syncDot.className = 'status-dot';
+        syncText.textContent = 'Perlu Login';
         break;
       case 'photo_uploading':
         syncText.textContent = `${event.current}/${event.total} Sync`;
@@ -530,7 +534,7 @@ function bindEvents() {
     galleryModal.classList.remove('active');
   });
 
-  syncNowBtn.addEventListener('click', () => {
+  syncNowBtn.addEventListener('click', async () => {
     if (!navigator.onLine) {
       alert('Perangkat sedang offline. Sambungkan internet untuk sinkronisasi.');
       return;
@@ -538,6 +542,15 @@ function bindEvents() {
     if (!gdriveManager.getTargetFolderId()) {
       alert('Tentukan folder Google Drive di menu Pengaturan terlebih dahulu.');
       return;
+    }
+    if (!gdriveManager.isConnected()) {
+      try {
+        await gdriveManager.requestAccessToken('consent');
+        updateAuthButtonState();
+      } catch (err) {
+        alert('Gagal menghubungkan Google Drive: ' + err.message);
+        return;
+      }
     }
     gdriveManager.syncQueue();
   });
@@ -564,6 +577,15 @@ function bindEvents() {
     if (!navigator.onLine) {
       alert('Perangkat sedang offline.');
       return;
+    }
+    if (!gdriveManager.isConnected()) {
+      try {
+        await gdriveManager.requestAccessToken('consent');
+        updateAuthButtonState();
+      } catch (err) {
+        alert('Gagal menghubungkan Google Drive: ' + err.message);
+        return;
+      }
     }
     photoViewerModal.classList.remove('active');
     gdriveManager.syncQueue();
