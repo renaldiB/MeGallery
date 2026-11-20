@@ -78,14 +78,18 @@ const lightboxImg = document.getElementById('lightbox-img');
 const closeLightboxBtn = document.getElementById('close-lightbox-btn');
 
 // Settings Form
-const clientIdInput = document.getElementById('client-id-input');
 const prefixInput = document.getElementById('prefix-input');
 const folderLinkInput = document.getElementById('folder-link-input');
+const pasteFolderBtn = document.getElementById('paste-folder-btn');
 const folderPreviewWrap = document.getElementById('folder-preview-wrap');
 const detectedFolderId = document.getElementById('detected-folder-id');
+const folderDetectedChip = document.getElementById('folder-detected-chip');
+const permissionHelpBtn = document.getElementById('permission-help-btn');
+const permissionTooltip = document.getElementById('permission-tooltip');
 const authGoogleBtn = document.getElementById('auth-google-btn');
 const authBtnLabel = document.getElementById('auth-btn-label');
-const qualitySelect = document.getElementById('quality-select');
+const segQualityButtons = document.querySelectorAll('.seg-btn');
+const qualityDesc = document.getElementById('quality-desc');
 const storageUsedText = document.getElementById('storage-used-text');
 const cleanupSyncedBtn = document.getElementById('cleanup-synced-btn');
 
@@ -170,7 +174,7 @@ async function handleShutter() {
     setTimeout(() => shutterFlash.classList.remove('active'), 80);
 
     // 2. Capture Frame from Viewfinder directly into memory Blob
-    const quality = parseFloat(qualitySelect.value) || 0.85;
+    const quality = parseFloat(localStorage.getItem('megallery_quality') || '0.85');
     const blob = await camera.capture(quality);
 
     // 3. Save strictly to IndexedDB (zero OS gallery pollution)
@@ -197,21 +201,37 @@ async function handleShutter() {
 // ----------------------------------------------------------------------------
 // Settings & Google Drive Handlers
 // ----------------------------------------------------------------------------
+const qualityDescriptions = {
+  '0.75': 'Cepat Terunggah',
+  '0.85': 'Rekomendasi • Hemat Kuota',
+  '0.92': 'Kualitas Terbaik'
+};
+
+function updateQualityUI(val) {
+  segQualityButtons.forEach((btn) => {
+    const isMatch = btn.dataset.quality === val;
+    btn.classList.toggle('active', isMatch);
+    btn.setAttribute('aria-checked', isMatch ? 'true' : 'false');
+  });
+  if (qualityDesc) {
+    qualityDesc.textContent = qualityDescriptions[val] || '';
+  }
+}
+
 function loadSettings() {
-  const savedClientId = gdriveManager.getClientId();
   const savedFolderId = gdriveManager.getTargetFolderId();
   const savedQuality = localStorage.getItem('megallery_quality') || '0.85';
   const savedPrefix = localStorage.getItem('megallery_prefix') || 'MeGallery_';
 
-  if (savedClientId) clientIdInput.value = savedClientId;
   if (prefixInput) prefixInput.value = savedPrefix;
   if (savedFolderId) {
     folderLinkInput.value = savedFolderId;
     detectedFolderId.textContent = savedFolderId;
     folderPreviewWrap.style.display = 'block';
+    if (folderDetectedChip) folderDetectedChip.style.display = 'inline-flex';
   }
-  qualitySelect.value = savedQuality;
 
+  updateQualityUI(savedQuality);
   updateAuthButtonState();
 }
 
@@ -222,9 +242,11 @@ function handleFolderInputChange() {
   if (folderId) {
     detectedFolderId.textContent = folderId;
     folderPreviewWrap.style.display = 'block';
+    if (folderDetectedChip) folderDetectedChip.style.display = 'inline-flex';
     gdriveManager.setTargetFolderId(folderId);
   } else {
     folderPreviewWrap.style.display = 'none';
+    if (folderDetectedChip) folderDetectedChip.style.display = 'none';
     if (!input) {
       gdriveManager.setTargetFolderId('');
     }
@@ -244,14 +266,11 @@ function updateAuthButtonState() {
 }
 
 async function handleGoogleAuth() {
-  const clientId = clientIdInput.value.trim();
+  const clientId = gdriveManager.getClientId();
   if (!clientId) {
-    alert('Masukkan Google OAuth Client ID terlebih dahulu.');
-    clientIdInput.focus();
+    alert('Google OAuth Client ID belum dikonfigurasi di sistem (VITE_GOOGLE_CLIENT_ID).');
     return;
   }
-
-  gdriveManager.setClientId(clientId);
 
   try {
     authBtnLabel.textContent = 'Menghubungkan...';
@@ -304,6 +323,9 @@ async function refreshGalleryOverview() {
   galleryTotalCount.textContent = `(${stats.totalPhotos})`;
   galleryStatBadge.textContent = `${stats.pendingCount} Menunggu Sinkron • ${stats.syncedCount} Tersinkron`;
   storageUsedText.textContent = `${stats.totalMb} MB`;
+  if (cleanupSyncedBtn) {
+    cleanupSyncedBtn.disabled = stats.syncedCount === 0 || stats.totalPhotos === 0;
+  }
 }
 
 function updateThumbnailPreview(thumbnailUrl) {
@@ -532,23 +554,37 @@ function bindEvents() {
 
   folderLinkInput.addEventListener('input', handleFolderInputChange);
 
-  clientIdInput.addEventListener('change', () => {
-    gdriveManager.setClientId(clientIdInput.value);
-  });
-  
-  const toggleClientIdBtn = document.getElementById('toggle-client-id-btn');
-  if (toggleClientIdBtn) {
-    toggleClientIdBtn.addEventListener('click', () => {
-      const isPassword = clientIdInput.type === 'password';
-      clientIdInput.type = isPassword ? 'text' : 'password';
-      toggleClientIdBtn.style.color = isPassword ? 'var(--color-yellow)' : 'var(--color-sky)';
+  if (pasteFolderBtn) {
+    pasteFolderBtn.addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          folderLinkInput.value = text.trim();
+          handleFolderInputChange();
+        }
+      } catch (err) {
+        console.warn('Clipboard read error:', err);
+        folderLinkInput.focus();
+      }
+    });
+  }
+
+  if (permissionHelpBtn && permissionTooltip) {
+    permissionHelpBtn.addEventListener('click', () => {
+      const isHidden = permissionTooltip.style.display === 'none';
+      permissionTooltip.style.display = isHidden ? 'block' : 'none';
     });
   }
 
   authGoogleBtn.addEventListener('click', handleGoogleAuth);
 
-  qualitySelect.addEventListener('change', () => {
-    localStorage.setItem('megallery_quality', qualitySelect.value);
+  segQualityButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const q = btn.dataset.quality;
+      if (!q) return;
+      localStorage.setItem('megallery_quality', q);
+      updateQualityUI(q);
+    });
   });
 
   cleanupSyncedBtn.addEventListener('click', async () => {

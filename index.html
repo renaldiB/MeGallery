@@ -109,9 +109,12 @@
          ==================================================================== -->
     <div id="settings-modal" class="modal-overlay">
       <div class="modal-sheet">
-        <div class="modal-header">
+        <!-- Drag Handle for Mobile Bottom Sheet -->
+        <div class="modal-drag-handle"></div>
+
+        <div class="modal-header modal-header-compact">
           <div class="modal-title">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ED7F1" stroke-width="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ED7F1" stroke-width="2">
               <circle cx="12" cy="12" r="3"/>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
@@ -121,35 +124,46 @@
         </div>
 
         <div class="modal-body">
-          <!-- Primary Setting: Dynamic Folder Link Input -->
-          <div class="form-group">
-            <label class="form-label" for="folder-link-input">Link Folder Google Drive</label>
-            <input type="text" id="folder-link-input" class="form-input" placeholder="Paste link folder: https://drive.google.com/drive/folders/..." spellcheck="false" autocomplete="off">
-            <p class="form-help">Tempel link folder Google Drive Anda. Folder ID akan dideteksi secara otomatis.</p>
+          <!-- 1. Folder Link Input with Inline Paste Button -->
+          <div class="form-group-compact">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label class="form-label-compact" for="folder-link-input">Link Folder Google Drive</label>
+              <div id="folder-detected-chip" class="folder-detected-chip" style="display: none;">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span>ID Terdeteksi</span>
+              </div>
+            </div>
+            <div class="input-with-action">
+              <input type="text" id="folder-link-input" class="form-input form-input-with-btn" placeholder="Tempel link folder Google Drive..." spellcheck="false" autocomplete="off">
+              <button type="button" id="paste-folder-btn" class="input-action-btn" title="Tempel dari Clipboard">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                  <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                </svg>
+                <span>Tempel</span>
+              </button>
+            </div>
             <div id="folder-preview-wrap" style="display: none;">
               <span class="folder-id-preview">Folder ID: <strong id="detected-folder-id">-</strong></span>
             </div>
-
-            <!-- Notice Box -->
-            <div class="team-folder-notice" style="background: rgba(20, 40, 52, 0.75); border: 1px solid rgba(111, 230, 252, 0.35); border-left: 3px solid var(--color-yellow); border-radius: 8px; padding: 10px 12px; margin-top: 10px; font-size: 11px; line-height: 1.5; color: var(--color-ice);">
-              <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-yellow)" stroke-width="2.5">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="12" y1="8" x2="12" y2="12"/>
-                  <line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-                <strong style="color: var(--color-yellow); font-size: 12px;">PENTING</strong>
-              </div>
-              Pastikan izin folder di Google Drive diset ke:
-              <div style="margin-top: 4px; padding-left: 4px; color: var(--color-sky);">
-                • Akses: <strong>"Anyone with the link"</strong> (Siapa saja yang memiliki link)<br>
-                • Peran: <strong>"Editor"</strong>
-              </div>
-            </div>
           </div>
 
-          <!-- Connect / Authorize Button -->
-          <button id="auth-google-btn" class="btn-primary">
+          <!-- 2. Compact Inline Permission Banner with Tooltip -->
+          <div class="folder-permission-banner">
+            <div class="permission-banner-main">
+              <span class="permission-icon">⚠️</span>
+              <span class="permission-text">Izin wajib: <strong>Anyone with the link</strong> • <strong>Editor</strong></span>
+            </div>
+            <button type="button" id="permission-help-btn" class="permission-help-btn" title="Penjelasan Izin" aria-label="Penjelasan Izin">?</button>
+          </div>
+          <div id="permission-tooltip" class="permission-tooltip" style="display: none;">
+            Di Google Drive, klik <em>Share</em> folder Anda, pilih <em>General access: Anyone with the link</em> dan role <em>Editor</em> agar foto dari akun Anda dapat diunggah langsung.
+          </div>
+
+          <!-- 3. Connect / Authorize Button -->
+          <button id="auth-google-btn" class="btn-primary btn-auth-compact">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
               <polyline points="10 17 15 12 10 7"/>
@@ -158,47 +172,45 @@
             <span id="auth-btn-label">Hubungkan Akun Google</span>
           </button>
 
-          <!-- Advanced / Developer Option: Custom Client ID -->
-          <details style="margin-top: 4px; font-size: 12px; color: var(--color-sand);">
-            <summary style="cursor: pointer; padding: 6px 0; opacity: 0.85;">⚙️ Opsi Pengembang (Client ID)</summary>
-            <div class="form-group" style="margin-top: 8px;">
-              <label class="form-label" for="client-id-input">Google OAuth Client ID</label>
-              <div style="position: relative; display: flex; align-items: center;">
-                <input type="password" id="client-id-input" class="form-input" style="width: 100%; padding-right: 40px; font-family: monospace;" placeholder="contoh: 123456789-xxx.apps.googleusercontent.com" spellcheck="false" autocomplete="off">
-                <button type="button" id="toggle-client-id-btn" style="position: absolute; right: 10px; background: none; border: none; color: var(--color-sky); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px;" title="Lihat / Sembunyikan">
-                  <svg id="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </details>
-
-          <!-- Custom Prefix Setting -->
-          <div class="form-group" style="margin-top: 4px;">
-            <label class="form-label" for="prefix-input">Prefix Nama Foto</label>
-            <input type="text" id="prefix-input" class="form-input" placeholder="MeGallery_" maxlength="30" spellcheck="false" autocomplete="off">
-            <p class="form-help">Awalan nama file untuk foto baru (misal: <code>ProyekA_</code>, <code>Invoice_</code>).</p>
+          <!-- 4. Custom Prefix Setting -->
+          <div class="form-group-compact">
+            <label class="form-label-compact" for="prefix-input">Prefix Nama Foto</label>
+            <input type="text" id="prefix-input" class="form-input form-input-compact" placeholder="MeGallery_" maxlength="30" spellcheck="false" autocomplete="off">
           </div>
 
-          <!-- Compression Quality Setting -->
-          <div class="form-group" style="margin-top: 4px;">
-            <label class="form-label" for="quality-select">Kualitas & Kompresi Foto</label>
-            <select id="quality-select" class="form-input" style="cursor: pointer;">
-              <option value="0.92">Maksimal (92% - Kualitas Terbaik)</option>
-              <option value="0.85" selected>Tinggi (85% - Rekomendasi, Hemat Kuota)</option>
-              <option value="0.75">Standar (75% - Cepat Terunggah)</option>
-            </select>
+          <!-- 5. Compression Quality (Segmented Control) -->
+          <div class="form-group-compact">
+            <label class="form-label-compact">Kualitas & Kompresi Foto</label>
+            <div class="segmented-control" role="radiogroup" aria-label="Kualitas Foto">
+              <button type="button" class="seg-btn" data-quality="0.75" role="radio" aria-checked="false">
+                <span class="seg-title">Standar</span>
+                <span class="seg-sub">75%</span>
+              </button>
+              <button type="button" class="seg-btn active" data-quality="0.85" role="radio" aria-checked="true">
+                <span class="seg-title">Tinggi</span>
+                <span class="seg-sub">85%</span>
+              </button>
+              <button type="button" class="seg-btn" data-quality="0.92" role="radio" aria-checked="false">
+                <span class="seg-title">Maksimal</span>
+                <span class="seg-sub">92%</span>
+              </button>
+            </div>
+            <div id="quality-desc" class="quality-dynamic-desc">Rekomendasi • Hemat Kuota</div>
           </div>
 
-          <!-- Storage Cleanup Action -->
-          <div style="border-top: 1px solid rgba(229, 208, 172, 0.15); padding-top: 12px; margin-top: 8px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span style="font-size: 12px; color: var(--color-sand);">Penyimpanan Lokal: <strong id="storage-used-text">0 MB</strong></span>
-              <button id="cleanup-synced-btn" class="btn-danger-outline">Bersihkan yang Tersinkron</button>
+          <!-- 6. Storage Cleanup (Single Compact Row) -->
+          <div class="storage-row-compact">
+            <div class="storage-info-col">
+              <span class="storage-title">Penyimpanan Lokal</span>
+              <span class="storage-subtitle"><strong id="storage-used-text">0.00 MB</strong> • Cache aman dihapus</span>
             </div>
-            <p class="form-help">Foto yang berhasil masuk Google Drive dapat dibersihkan dari memori HP kapan saja.</p>
+            <button type="button" id="cleanup-synced-btn" class="btn-cleanup-compact">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+              <span>Bersihkan</span>
+            </button>
           </div>
         </div>
       </div>
