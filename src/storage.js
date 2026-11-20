@@ -3,6 +3,8 @@
  * Photos NEVER touch the OS native photo gallery.
  */
 
+import { sanitizeFilename } from './utils/gdriveLink.js';
+
 const DB_NAME = 'MeGalleryDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'photos';
@@ -75,12 +77,13 @@ async function generateThumbnail(blob, maxDim = 240) {
 /**
  * Save captured photo blob strictly into isolated IndexedDB queue
  */
-export async function savePhoto({ blob, targetFolderId }) {
+export async function savePhoto({ blob, targetFolderId, prefix }) {
   const db = await initDB();
   const timestamp = Date.now();
   const randomSuffix = Math.random().toString(36).substring(2, 7);
   const id = `photo_${timestamp}_${randomSuffix}`;
-  const filename = `MeGallery_${formatDateForFilename(timestamp)}_${randomSuffix}.jpg`;
+  const activePrefix = (prefix && typeof prefix === 'string' && prefix.trim()) ? prefix.trim() : 'MeGallery_';
+  const filename = `${activePrefix}${formatDateForFilename(timestamp)}_${randomSuffix}.jpg`;
   const thumbnail = await generateThumbnail(blob);
 
   const photoRecord = {
@@ -164,6 +167,11 @@ export async function updatePhotoStatus(id, updates) {
     };
     getReq.onerror = () => reject(getReq.error);
   });
+}
+
+export async function renamePhoto(id, newFilename) {
+  const cleanName = sanitizeFilename(newFilename);
+  return updatePhotoStatus(id, { filename: cleanName });
 }
 
 export async function deletePhoto(id) {

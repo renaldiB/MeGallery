@@ -221,6 +221,34 @@ class GoogleDriveManager {
   }
 
   /**
+   * Rename existing file in Google Drive via PATCH
+   */
+  async renameFile(fileId, newName) {
+    if (!fileId) throw new Error('File ID kosong.');
+    const token = await this.ensureValidToken();
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ name: newName })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let parsedMsg = errorText;
+      try {
+        const errJson = JSON.parse(errorText);
+        parsedMsg = errJson.error?.message || errorText;
+      } catch (_) {}
+      throw new Error(`Gagal rename file di Google Drive: ${parsedMsg}`);
+    }
+
+    return await response.json();
+  }
+
+  /**
    * Process all pending photos in the IndexedDB queue
    */
   async syncQueue() {

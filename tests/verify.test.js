@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { extractFolderId, sanitizeFolderId, isValidFolderId } from '../src/utils/gdriveLink.js';
+import { extractFolderId, sanitizeFolderId, isValidFolderId, sanitizeFilename, sanitizePrefix } from '../src/utils/gdriveLink.js';
 
 console.log('Running verify tests for gdriveLink...');
 
@@ -46,5 +46,14 @@ assert.equal(isValidTransition('uploading', 'synced'), true);
 assert.equal(isValidTransition('uploading', 'failed'), true);
 assert.equal(isValidTransition('failed', 'uploading'), true);
 assert.equal(isValidTransition('synced', 'uploading'), false);
+
+// Test 8: Filename and Prefix Sanitization
+assert.equal(sanitizeFilename('Kwitansi Makan Siang'), 'Kwitansi Makan Siang.jpg');
+assert.equal(sanitizeFilename('Invoice:2026/11/20?.jpg'), 'Invoice_2026_11_20_.jpg');
+assert.equal(sanitizeFilename('Dokumen.jpeg'), 'Dokumen.jpeg');
+assert.equal(sanitizeFilename('   ').startsWith('MeGallery_'), true);
+assert.equal(sanitizePrefix('ProyekA'), 'ProyekA_');
+assert.equal(sanitizePrefix('Invoice_'), 'Invoice_');
+assert.equal(sanitizePrefix('Foto:Kantor/'), 'Foto_Kantor_');
 
 console.log('✓ All verification tests passed successfully.');

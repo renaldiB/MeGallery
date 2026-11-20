@@ -175,6 +175,13 @@
             </div>
           </details>
 
+          <!-- Custom Prefix Setting -->
+          <div class="form-group" style="margin-top: 4px;">
+            <label class="form-label" for="prefix-input">Prefix Nama Foto</label>
+            <input type="text" id="prefix-input" class="form-input" placeholder="MeGallery_" maxlength="30" spellcheck="false" autocomplete="off">
+            <p class="form-help">Awalan nama file untuk foto baru (misal: <code>ProyekA_</code>, <code>Invoice_</code>).</p>
+          </div>
+
           <!-- Compression Quality Setting -->
           <div class="form-group" style="margin-top: 4px;">
             <label class="form-label" for="quality-select">Kualitas & Kompresi Foto</label>
@@ -248,12 +255,26 @@
          ==================================================================== -->
     <div id="photo-viewer-modal" class="modal-overlay">
       <div class="modal-sheet" style="max-height: 94dvh;">
-        <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px;">
-          <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
-            <span id="viewer-status-badge" class="viewer-inline-badge">DRIVE ✓</span>
-            <span id="viewer-photo-title" style="font-size: 13px; font-weight: 700; color: var(--color-ice); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Detail Foto</span>
+        <div class="modal-header" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;">
+            <div id="viewer-title-display-box" style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+              <span id="viewer-status-badge" class="viewer-inline-badge">DRIVE ✓</span>
+              <span id="viewer-photo-title" style="font-size: 13px; font-weight: 700; color: var(--color-ice); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Detail Foto</span>
+              <button id="viewer-rename-btn" class="btn-icon-subtle" title="Ganti Nama Foto" aria-label="Ganti Nama Foto" style="flex-shrink: 0; padding: 2px 6px; background: none; border: none; color: var(--color-sky); cursor: pointer; display: flex; align-items: center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                </svg>
+              </button>
+            </div>
+            <button id="close-viewer-btn" class="btn-close" aria-label="Tutup" style="flex-shrink: 0;">✕</button>
           </div>
-          <button id="close-viewer-btn" class="btn-close" aria-label="Tutup" style="flex-shrink: 0;">✕</button>
+
+          <!-- Inline Rename Input Box -->
+          <div id="viewer-rename-box" style="display: none; width: 100%; align-items: center; gap: 6px;">
+            <input type="text" id="viewer-rename-input" class="form-input" style="flex: 1; padding: 6px 10px; font-size: 12px;" spellcheck="false" autocomplete="off">
+            <button id="viewer-rename-save-btn" class="btn-primary" style="padding: 6px 12px; font-size: 12px;" title="Simpan Nama">✓</button>
+            <button id="viewer-rename-cancel-btn" class="btn-danger-outline" style="padding: 6px 10px; font-size: 12px;" title="Batal">✕</button>
+          </div>
         </div>
 
         <div class="modal-body">

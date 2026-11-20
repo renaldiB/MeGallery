@@ -6,6 +6,7 @@ import { CameraController } from './camera.js';
 import {
   initDB,
   savePhoto,
+  renamePhoto,
   getAllPhotos,
   getPhotoById,
   deletePhoto,
@@ -13,7 +14,7 @@ import {
   getStorageStats
 } from './storage.js';
 import { gdriveManager } from './gdrive.js';
-import { extractFolderId, isValidFolderId } from './utils/gdriveLink.js';
+import { extractFolderId, isValidFolderId, sanitizeFilename, sanitizePrefix } from './utils/gdriveLink.js';
 
 // DOM Elements
 const videoEl = document.getElementById('camera-video');
@@ -56,6 +57,11 @@ const syncNowBtn = document.getElementById('sync-now-btn');
 const photoViewerModal = document.getElementById('photo-viewer-modal');
 const closeViewerBtn = document.getElementById('close-viewer-btn');
 const viewerPhotoTitle = document.getElementById('viewer-photo-title');
+const viewerRenameBtn = document.getElementById('viewer-rename-btn');
+const viewerRenameBox = document.getElementById('viewer-rename-box');
+const viewerRenameInput = document.getElementById('viewer-rename-input');
+const viewerRenameSaveBtn = document.getElementById('viewer-rename-save-btn');
+const viewerRenameCancelBtn = document.getElementById('viewer-rename-cancel-btn');
 const viewerImg = document.getElementById('viewer-img');
 const viewerDate = document.getElementById('viewer-date');
 const viewerStatusBadge = document.getElementById('viewer-status-badge');
@@ -73,6 +79,7 @@ const closeLightboxBtn = document.getElementById('close-lightbox-btn');
 
 // Settings Form
 const clientIdInput = document.getElementById('client-id-input');
+const prefixInput = document.getElementById('prefix-input');
 const folderLinkInput = document.getElementById('folder-link-input');
 const folderPreviewWrap = document.getElementById('folder-preview-wrap');
 const detectedFolderId = document.getElementById('detected-folder-id');
@@ -168,7 +175,8 @@ async function handleShutter() {
 
     // 3. Save strictly to IndexedDB (zero OS gallery pollution)
     const targetFolder = gdriveManager.getTargetFolderId();
-    const savedPhoto = await savePhoto({ blob, targetFolderId: targetFolder });
+    const savedPrefix = localStorage.getItem('megallery_prefix') || 'MeGallery_';
+    const savedPhoto = await savePhoto({ blob, targetFolderId: targetFolder, prefix: savedPrefix });
 
     // 4. Update Quick Preview & Badges
     updateThumbnailPreview(savedPhoto.thumbnail);
@@ -193,8 +201,10 @@ function loadSettings() {
   const savedClientId = gdriveManager.getClientId();
   const savedFolderId = gdriveManager.getTargetFolderId();
   const savedQuality = localStorage.getItem('megallery_quality') || '0.85';
+  const savedPrefix = localStorage.getItem('megallery_prefix') || 'MeGallery_';
 
   if (savedClientId) clientIdInput.value = savedClientId;
+  if (prefixInput) prefixInput.value = savedPrefix;
   if (savedFolderId) {
     folderLinkInput.value = savedFolderId;
     detectedFolderId.textContent = savedFolderId;
@@ -362,6 +372,10 @@ async function openPhotoViewer(photoId) {
   viewerStatusBadge.className = `viewer-inline-badge badge-${photo.status}`;
   viewerStatusBadge.textContent = getStatusLabel(photo.status);
 
+  if (viewerRenameBox) {
+    viewerRenameBox.style.display = 'none';
+  }
+
   if (photo.errorMsg) {
     viewerError.textContent = `Error: ${photo.errorMsg}`;
     viewerError.style.display = 'block';
@@ -508,6 +522,14 @@ function bindEvents() {
     settingsModal.classList.remove('active');
   });
 
+  if (prefixInput) {
+    prefixInput.addEventListener('change', () => {
+      const clean = sanitizePrefix(prefixInput.value);
+      prefixInput.value = clean;
+      localStorage.setItem('megallery_prefix', clean);
+    });
+  }
+
   folderLinkInput.addEventListener('input', handleFolderInputChange);
 
   clientIdInput.addEventListener('change', () => {
@@ -571,6 +593,7 @@ function bindEvents() {
   // Photo Viewer Controls
   closeViewerBtn.addEventListener('click', () => {
     photoViewerModal.classList.remove('active');
+    if (viewerRenameBox) viewerRenameBox.style.display = 'none';
     currentViewingPhotoId = null;
     currentViewingBlob = null;
     if (activeViewerBlobUrl) {
@@ -578,6 +601,79 @@ function bindEvents() {
       activeViewerBlobUrl = null;
     }
   });
+
+  if (viewerRenameBtn && viewerRenameBox && viewerRenameInput) {
+    viewerRenameBtn.addEventListener('click', async () => {
+      if (!currentViewingPhotoId) return;
+      const isHidden = viewerRenameBox.style.display === 'none';
+      if (isHidden) {
+        const photo = await getPhotoById(currentViewingPhotoId);
+        if (!photo) return;
+        viewerRenameInput.value = photo.filename.replace(/\.jpe?g$/i, '');
+        viewerRenameBox.style.display = 'flex';
+        viewerRenameInput.focus();
+      } else {
+        viewerRenameBox.style.display = 'none';
+      }
+    });
+
+    viewerRenameCancelBtn.addEventListener('click', () => {
+      viewerRenameBox.style.display = 'none';
+    });
+
+    const handleSaveRename = async () => {
+      if (!currentViewingPhotoId) return;
+      const rawInput = viewerRenameInput.value.trim();
+      if (!rawInput) return;
+      const cleanName = sanitizeFilename(rawInput);
+
+      const currentPhoto = await getPhotoById(currentViewingPhotoId);
+      if (!currentPhoto) return;
+
+      if (currentPhoto.filename === cleanName) {
+        viewerRenameBox.style.display = 'none';
+        return;
+      }
+
+      try {
+        viewerRenameSaveBtn.disabled = true;
+        viewerRenameSaveBtn.textContent = '...';
+
+        // If synced with Google Drive, rename in Google Drive first
+        if (currentPhoto.status === 'synced' && currentPhoto.gdriveFileId) {
+          if (navigator.onLine && gdriveManager.isConnected()) {
+            await gdriveManager.renameFile(currentPhoto.gdriveFileId, cleanName);
+          } else {
+            alert('Perangkat offline atau belum login Google Drive. Nama lokal diperbarui, namun nama di Google Drive belum sinkron.');
+          }
+        }
+
+        await renamePhoto(currentViewingPhotoId, cleanName);
+        viewerPhotoTitle.textContent = cleanName;
+        viewerRenameBox.style.display = 'none';
+        await refreshGalleryOverview();
+        if (galleryModal.classList.contains('active')) {
+          renderGalleryGrid();
+        }
+      } catch (err) {
+        console.error('Rename error:', err);
+        alert('Gagal mengubah nama: ' + err.message);
+      } finally {
+        viewerRenameSaveBtn.disabled = false;
+        viewerRenameSaveBtn.textContent = '✓';
+      }
+    };
+
+    viewerRenameSaveBtn.addEventListener('click', handleSaveRename);
+    viewerRenameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSaveRename();
+      } else if (e.key === 'Escape') {
+        viewerRenameBox.style.display = 'none';
+      }
+    });
+  }
 
   viewerDeleteBtn.addEventListener('click', async () => {
     if (!currentViewingPhotoId) return;

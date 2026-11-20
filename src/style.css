@@ -740,6 +740,16 @@ html, body {
   margin-top: 12px;
 }
 
+.btn-icon-subtle {
+  transition: transform 0.15s ease, color 0.15s ease;
+  border-radius: 4px;
+}
+
+.btn-icon-subtle:active {
+  transform: scale(0.9);
+  color: var(--color-yellow);
+}
+
 /* --------------------------------------------------------------------------
    Inline Viewer Badge & Fullscreen Clean Lightbox
    -------------------------------------------------------------------------- */
