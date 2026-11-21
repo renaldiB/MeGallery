@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { extractFolderId, sanitizeFolderId, isValidFolderId, sanitizeFilename, sanitizePrefix } from '../src/utils/gdriveLink.js';
+import { formatIndonesianTimestamp } from '../src/utils/geolocation.js';
+import { haversineDistance, findNearestSumselLocation } from '../src/data/sumselGeo.js';
 
 console.log('Running verify tests for gdriveLink...');
 
@@ -55,5 +57,38 @@ assert.equal(sanitizeFilename('   ').startsWith('MeGallery_'), true);
 assert.equal(sanitizePrefix('ProyekA'), 'ProyekA_');
 assert.equal(sanitizePrefix('Invoice_'), 'Invoice_');
 assert.equal(sanitizePrefix('Foto:Kantor/'), 'Foto_Kantor_');
+
+// Test 9: Indonesian Timestamp Formatting
+// Use fixed date: 2026-11-21 11:56:30 (Saturday / Sabtu)
+const sampleDate = new Date(2026, 10, 21, 11, 56, 30); // Note: month 10 is November in JS 0-indexed Date
+const tsObj = formatIndonesianTimestamp(sampleDate);
+assert.equal(tsObj.dateLine, 'Sabtu, 21 November 2026');
+assert.equal(tsObj.timeLine, '11:56:30');
+
+// Test 10: Offline Sumatera Selatan & Palembang Nearest Location Resolver
+// Coordinate in Palembang (near Bukit Kecil / Ampera)
+const palembangLoc = findNearestSumselLocation(-2.9912, 104.7554);
+assert.notEqual(palembangLoc, null);
+assert.equal(palembangLoc.regency, 'Kota Palembang');
+assert.equal(palembangLoc.district, 'Kec. Bukit Kecil');
+assert.equal(palembangLoc.village, 'Kel. 24 Ilir');
+assert.equal(palembangLoc.distanceKm < 1, true);
+
+// Coordinate in Ogan Ilir (near Indralaya Utara)
+const oganIlirLoc = findNearestSumselLocation(-3.1512, 104.6685);
+assert.notEqual(oganIlirLoc, null);
+assert.equal(oganIlirLoc.regency, 'Kab. Ogan Ilir');
+assert.equal(oganIlirLoc.district, 'Kec. Indralaya Utara');
+assert.equal(oganIlirLoc.village, 'Desa Pulau Semambu');
+
+// Coordinate in Banyuasin (near Betung)
+const banyuasinLoc = findNearestSumselLocation(-2.7125, 104.2152);
+assert.notEqual(banyuasinLoc, null);
+assert.equal(banyuasinLoc.regency, 'Kab. Banyuasin');
+assert.equal(banyuasinLoc.district, 'Kec. Betung');
+
+// Distance calculation check
+const dist = haversineDistance(-2.9912, 104.7554, -2.9752, 104.7314);
+assert.equal(dist > 2 && dist < 5, true);
 
 console.log('✓ All verification tests passed successfully.');

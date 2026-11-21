@@ -77,7 +77,7 @@ async function generateThumbnail(blob, maxDim = 240) {
 /**
  * Save captured photo blob strictly into isolated IndexedDB queue
  */
-export async function savePhoto({ blob, targetFolderId, prefix }) {
+export async function savePhoto({ blob, targetFolderId, prefix, location }) {
   const db = await initDB();
   const timestamp = Date.now();
   const randomSuffix = Math.random().toString(36).substring(2, 7);
@@ -93,6 +93,7 @@ export async function savePhoto({ blob, targetFolderId, prefix }) {
     filename,
     size: blob.size,
     timestamp,
+    location: location || null,
     targetFolderId: targetFolderId || '',
     status: 'pending', // 'pending' | 'uploading' | 'synced' | 'failed'
     retryCount: 0,

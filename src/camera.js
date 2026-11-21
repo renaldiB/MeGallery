@@ -144,11 +144,80 @@ export class CameraController {
   }
 
   /**
+   * Render high-contrast location & timestamp watermark onto canvas
+   */
+  renderWatermark(ctx, width, height, locationData, dateData) {
+    if (!dateData) return;
+
+    ctx.save();
+    const fontSize = Math.max(Math.round(width * 0.022), 16);
+    const smallFontSize = Math.max(Math.round(fontSize * 0.78), 12);
+    const padding = Math.max(Math.round(width * 0.025), 18);
+    const lineHeight = Math.round(fontSize * 1.35);
+
+    // Subtle dark gradient protector at bottom for 100% legibility on white/bright scenes
+    const gradHeight = Math.max(Math.round(height * 0.16), lineHeight * 4 + padding * 2);
+    const grad = ctx.createLinearGradient(0, height - gradHeight, 0, height);
+    grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    grad.addColorStop(0.35, 'rgba(0, 0, 0, 0.45)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0.82)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, height - gradHeight, width, gradHeight);
+
+    // Text styling with drop shadow
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+    ctx.shadowBlur = Math.max(Math.round(fontSize * 0.22), 3);
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 2;
+
+    // 1. Right-Bottom Timestamp (Day, DD Month YYYY \n HH:mm:ss)
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    const timeY = height - padding;
+    const dateY = timeY - lineHeight;
+
+    ctx.font = `700 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    ctx.fillText(dateData.timeLine, width - padding, timeY);
+
+    ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    ctx.fillText(dateData.dateLine, width - padding, dateY);
+
+    // 2. Left-Bottom Location (Desa/Kelurahan, Kecamatan, Kota/Kabupaten, GPS)
+    if (locationData && (locationData.primaryText || locationData.coordsText)) {
+      ctx.textAlign = 'left';
+      const locLine3Y = height - padding;
+      const locLine2Y = locLine3Y - Math.round(lineHeight * 0.85);
+      const locLine1Y = locLine2Y - Math.round(lineHeight * 0.9);
+
+      // Line 1: Village & District
+      ctx.font = `700 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+      ctx.fillText(`📍 ${locationData.primaryText}`, padding, locLine1Y);
+
+      // Line 2: Regency & Province
+      if (locationData.secondaryText) {
+        ctx.font = `500 ${Math.round(fontSize * 0.9)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+        ctx.fillText(locationData.secondaryText, padding + Math.round(fontSize * 1.1), locLine2Y);
+      }
+
+      // Line 3: Exact Coordinates & GPS Accuracy
+      if (locationData.coordsText) {
+        ctx.font = `400 ${smallFontSize}px monospace`;
+        ctx.fillStyle = '#FFFA8D'; // Subtle warm lemon for GPS accuracy
+        ctx.fillText(locationData.coordsText, padding + Math.round(fontSize * 1.1), locLine3Y);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  /**
    * Capture photo frame directly into in-memory Blob
    * @param {number} quality JPEG quality between 0.1 and 1.0 (default 0.88)
+   * @param {object} watermarkOptions Optional { enabled, location, timestamp }
    * @returns {Promise<Blob>}
    */
-  async capture(quality = 0.88) {
+  async capture(quality = 0.88, watermarkOptions = null) {
     if (!this.stream || !this.video.videoWidth) {
       throw new Error('Kamera belum siap untuk mengambil foto.');
     }
@@ -175,6 +244,22 @@ export class CameraController {
     }
     
     ctx.drawImage(this.video, 0, 0, width, height);
+
+    // Reset transform matrix before drawing watermark
+    if (this.facingMode === 'user') {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
+    // Render watermark onto canvas frame if enabled
+    if (watermarkOptions && watermarkOptions.enabled !== false && watermarkOptions.timestamp) {
+      this.renderWatermark(
+        ctx,
+        width,
+        height,
+        watermarkOptions.location,
+        watermarkOptions.timestamp
+      );
+    }
 
     return new Promise((resolve, reject) => {
       this.canvas.toBlob(

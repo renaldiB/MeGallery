@@ -15,6 +15,7 @@ import {
 } from './storage.js';
 import { gdriveManager } from './gdrive.js';
 import { extractFolderId, isValidFolderId, sanitizeFilename, sanitizePrefix } from './utils/gdriveLink.js';
+import { geoService, formatIndonesianTimestamp } from './utils/geolocation.js';
 
 // DOM Elements
 const videoEl = document.getElementById('camera-video');
@@ -34,6 +35,10 @@ const networkDot = document.getElementById('network-dot');
 const networkText = document.getElementById('network-text');
 const syncDot = document.getElementById('sync-dot');
 const syncText = document.getElementById('sync-text');
+
+// Live Viewfinder HUD
+const liveLocationText = document.getElementById('live-location-text');
+const liveClockText = document.getElementById('live-clock-text');
 
 // Quick Gallery Trigger
 const galleryBtn = document.getElementById('gallery-btn');
@@ -63,6 +68,7 @@ const viewerRenameInput = document.getElementById('viewer-rename-input');
 const viewerRenameSaveBtn = document.getElementById('viewer-rename-save-btn');
 const viewerRenameCancelBtn = document.getElementById('viewer-rename-cancel-btn');
 const viewerImg = document.getElementById('viewer-img');
+const viewerLocation = document.getElementById('viewer-location');
 const viewerDate = document.getElementById('viewer-date');
 const viewerStatusBadge = document.getElementById('viewer-status-badge');
 const viewerSize = document.getElementById('viewer-size');
@@ -79,6 +85,7 @@ const closeLightboxBtn = document.getElementById('close-lightbox-btn');
 
 // Settings Form
 const prefixInput = document.getElementById('prefix-input');
+const watermarkToggle = document.getElementById('watermark-toggle');
 const folderLinkInput = document.getElementById('folder-link-input');
 const pasteFolderBtn = document.getElementById('paste-folder-btn');
 const folderPreviewWrap = document.getElementById('folder-preview-wrap');
@@ -111,6 +118,9 @@ async function initApp() {
   // Setup Camera
   camera = new CameraController(videoEl, canvasEl);
   startCameraStream();
+
+  // Setup GPS & Live Viewfinder HUD
+  setupGeolocationAndHUD();
 
   // Load Saved Settings
   loadSettings();
@@ -145,6 +155,38 @@ function registerServiceWorker() {
 }
 
 // ----------------------------------------------------------------------------
+// Geolocation & Viewfinder HUD
+// ----------------------------------------------------------------------------
+function setupGeolocationAndHUD() {
+  // Start GPS tracking
+  geoService.start();
+
+  // Listen to location updates
+  geoService.onLocationChange((loc, err) => {
+    if (liveLocationText) {
+      if (loc && loc.shortLabel) {
+        liveLocationText.textContent = loc.shortLabel;
+        liveLocationText.title = `${loc.primaryText} • ${loc.secondaryText} (${loc.coordsText})`;
+      } else if (err) {
+        liveLocationText.textContent = err;
+      } else {
+        liveLocationText.textContent = 'Mencari sinyal GPS...';
+      }
+    }
+  });
+
+  // Tick clock every second
+  function tickClock() {
+    const ts = formatIndonesianTimestamp();
+    if (liveClockText) {
+      liveClockText.textContent = ts.timeLine;
+    }
+  }
+  setInterval(tickClock, 1000);
+  tickClock();
+}
+
+// ----------------------------------------------------------------------------
 // Camera Lifecycle
 // ----------------------------------------------------------------------------
 async function startCameraStream() {
@@ -173,20 +215,35 @@ async function handleShutter() {
     shutterFlash.classList.add('active');
     setTimeout(() => shutterFlash.classList.remove('active'), 80);
 
-    // 2. Capture Frame from Viewfinder directly into memory Blob
-    const quality = parseFloat(localStorage.getItem('megallery_quality') || '0.85');
-    const blob = await camera.capture(quality);
+    // 2. Prepare Watermark Options (Timestamp & Location)
+    const isWatermarkEnabled = localStorage.getItem('megallery_watermark_enabled') !== 'false';
+    const curLocation = geoService.getCurrentLocation();
+    const curTimestamp = formatIndonesianTimestamp();
+    const watermarkOpts = {
+      enabled: isWatermarkEnabled,
+      location: curLocation,
+      timestamp: curTimestamp
+    };
 
-    // 3. Save strictly to IndexedDB (zero OS gallery pollution)
+    // 3. Capture Frame from Viewfinder directly into memory Blob with Watermark
+    const quality = parseFloat(localStorage.getItem('megallery_quality') || '0.85');
+    const blob = await camera.capture(quality, watermarkOpts);
+
+    // 4. Save strictly to IndexedDB (zero OS gallery pollution) with location metadata
     const targetFolder = gdriveManager.getTargetFolderId();
     const savedPrefix = localStorage.getItem('megallery_prefix') || 'MeGallery_';
-    const savedPhoto = await savePhoto({ blob, targetFolderId: targetFolder, prefix: savedPrefix });
+    const savedPhoto = await savePhoto({
+      blob,
+      targetFolderId: targetFolder,
+      prefix: savedPrefix,
+      location: curLocation
+    });
 
-    // 4. Update Quick Preview & Badges
+    // 5. Update Quick Preview & Badges
     updateThumbnailPreview(savedPhoto.thumbnail);
     await refreshGalleryOverview();
 
-    // 5. Trigger sync if online, configured, and authenticated
+    // 6. Trigger sync if online, configured, and authenticated
     if (navigator.onLine && targetFolder && gdriveManager.isConnected()) {
       gdriveManager.syncQueue();
     }
@@ -222,8 +279,10 @@ function loadSettings() {
   const savedFolderId = gdriveManager.getTargetFolderId();
   const savedQuality = localStorage.getItem('megallery_quality') || '0.85';
   const savedPrefix = localStorage.getItem('megallery_prefix') || 'MeGallery_';
+  const savedWatermark = localStorage.getItem('megallery_watermark_enabled') !== 'false';
 
   if (prefixInput) prefixInput.value = savedPrefix;
+  if (watermarkToggle) watermarkToggle.checked = savedWatermark;
   if (savedFolderId) {
     folderLinkInput.value = savedFolderId;
     detectedFolderId.textContent = savedFolderId;
@@ -387,6 +446,15 @@ async function openPhotoViewer(photoId) {
   if (!photo) return;
 
   viewerPhotoTitle.textContent = photo.filename;
+  if (viewerLocation) {
+    if (photo.location && (photo.location.primaryText || photo.location.coordsText)) {
+      const locDetail = [photo.location.primaryText, photo.location.secondaryText].filter(Boolean).join(', ');
+      viewerLocation.textContent = `📍 ${locDetail} [${photo.location.coordsText || ''}]`;
+      viewerLocation.style.display = 'block';
+    } else {
+      viewerLocation.style.display = 'none';
+    }
+  }
   viewerDate.textContent = new Date(photo.timestamp).toLocaleString('id-ID');
   viewerSize.textContent = `Ukuran: ${(photo.size / (1024 * 1024)).toFixed(2)} MB`;
   viewerFolder.textContent = `Folder GDrive: ${photo.targetFolderId || '-'}`;
@@ -549,6 +617,12 @@ function bindEvents() {
       const clean = sanitizePrefix(prefixInput.value);
       prefixInput.value = clean;
       localStorage.setItem('megallery_prefix', clean);
+    });
+  }
+
+  if (watermarkToggle) {
+    watermarkToggle.addEventListener('change', () => {
+      localStorage.setItem('megallery_watermark_enabled', String(watermarkToggle.checked));
     });
   }
 
