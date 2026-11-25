@@ -87,6 +87,22 @@
       </div>
     </header>
 
+    <!-- What's New Banner (Strict 1x display until dismissed) -->
+    <div id="whats-new-banner" class="whats-new-banner" style="display: none;" role="region" aria-label="Update Baru">
+      <div class="whats-new-header">
+        <span class="whats-new-badge">Update Baru</span>
+        <button id="close-whats-new-btn" type="button" class="whats-new-close" aria-label="Tutup">✕</button>
+      </div>
+      <ul class="whats-new-list">
+        <li><strong>Simpan ke HP</strong> — foto &lt; 5 jadi JPG biasa, &ge; 5 foto otomatis masuk 1 folder ZIP.</li>
+        <li><strong>Pindah ke laptop</strong> — pakai <em>Unduh Backup</em> lalu <em>Impor</em> di laptop (foto + settingan ikut terbawa).</li>
+        <li><strong>Cadangan satuan</strong> — tombol <em>Simpan JPG</em> ada langsung di detail foto.</li>
+      </ul>
+      <div class="whats-new-footer">
+        <button id="ack-whats-new-btn" type="button" class="whats-new-ack-btn">Oke, Sip</button>
+      </div>
+    </div>
+
     <!-- Bottom Action Deck -->
     <footer class="bottom-deck">
       <!-- In-App Gallery Thumbnail Preview -->
@@ -261,14 +277,66 @@
         </div>
 
         <!-- Quick Gallery Toolbar -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px;">
+        <div class="gallery-toolbar-top">
           <span id="gallery-stat-badge" class="status-chip" style="font-size: 11px;">0 Menunggu Sinkron</span>
-          <button id="sync-now-btn" class="btn-primary" style="padding: 8px 14px; font-size: 12px;">
+          <button id="sync-now-btn" class="btn-primary" style="padding: 8px 14px; font-size: 12px; min-height: 36px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
             </svg>
             <span>Sync Sekarang</span>
           </button>
+        </div>
+
+        <!-- External Backup Reminder Banner (when unsynced >= 10) -->
+        <div id="backup-warning-banner" class="backup-warning-banner" style="display: none;">
+          <span id="backup-warning-text" class="backup-warning-text">⚠ Foto hanya di cache browser</span>
+          <button id="quick-backup-btn" type="button" class="backup-warning-cta">Backup</button>
+        </div>
+
+        <!-- 2x2 Responsive Export / Backup Action Grid -->
+        <div class="gallery-action-grid">
+          <button id="download-pending-btn" type="button" class="btn-secondary btn-gallery-action" title="Unduh gambar yang masih antre atau gagal (JPG / folder ZIP)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Unduh Antre/Gagal</span>
+          </button>
+          <button id="download-all-btn" type="button" class="btn-secondary btn-gallery-action" title="Unduh semua gambar (JPG / folder ZIP)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Unduh Semua</span>
+          </button>
+          <button id="download-backup-btn" type="button" class="btn-secondary btn-gallery-action btn-gallery-backup" title="Unduh paket backup lengkap (foto + settingan) untuk transfer ke laptop">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+            <span>Unduh Backup</span>
+          </button>
+          <button id="import-backup-btn" type="button" class="btn-secondary btn-gallery-action" title="Impor file ZIP backup dari perangkat lain">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <span>Impor Backup</span>
+          </button>
+          <input type="file" id="import-backup-input" accept=".zip,application/zip" hidden>
+        </div>
+
+        <!-- Export / ZIP Save Panel -->
+        <div id="export-status-panel" class="export-status-panel" style="display: none;">
+          <div class="export-panel-header">
+            <span id="export-status-text" class="export-status-text">Menyiapkan...</span>
+            <button id="close-export-panel-btn" type="button" class="export-close-btn" aria-label="Tutup panel ekspor">✕</button>
+          </div>
+          <div id="export-actions-container" class="export-actions-container"></div>
         </div>
 
         <div class="modal-body">
@@ -346,7 +414,15 @@
               </svg>
               <span>Unggah ke Drive</span>
             </button>
-            <button id="viewer-delete-btn" class="btn-danger-outline" style="padding: 10px 16px;">
+            <button id="viewer-download-btn" type="button" class="btn-secondary" style="padding: 10px 14px; min-height: 40px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              <span>Simpan JPG</span>
+            </button>
+            <button id="viewer-delete-btn" class="btn-danger-outline" style="padding: 10px 14px; min-height: 40px;">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="3 6 5 6 21 6"/>
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>

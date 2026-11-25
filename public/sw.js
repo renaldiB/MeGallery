@@ -1,4 +1,4 @@
-const CACHE_NAME = 'megallery-shell-v2';
+const CACHE_NAME = 'megallery-shell-v3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -22,37 +22,35 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Never cache external Google API requests or OAuth
+  // Never cache external Google APIs, OAuth, OSM geocoding, or non-GET requests
   if (
     url.hostname.includes('googleapis.com') ||
     url.hostname.includes('accounts.google.com') ||
     url.hostname.includes('gstatic.com') ||
+    url.hostname.includes('openstreetmap.org') ||
     event.request.method !== 'GET'
   ) {
     return;
   }
 
+  // Network-first strategy with offline cache fallback so updates apply cleanly on refresh
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      // Return cached version immediately if available
-      const fetchPromise = fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(() => {
-          // If offline and requesting navigation / HTML, fallback to cached root index.html
-          if (event.request.headers.get('accept')?.includes('text/html')) {
-            return caches.match('/') || caches.match('/index.html');
-          }
-        });
-
-      return cachedResponse || fetchPromise;
-    })
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      })
+      .catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        if (event.request.headers.get('accept')?.includes('text/html')) {
+          return caches.match('/') || caches.match('/index.html');
+        }
+      })
   );
 });

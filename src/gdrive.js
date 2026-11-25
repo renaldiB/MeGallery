@@ -3,7 +3,7 @@
  * Uses Google Identity Services (GIS) with drive.file scope (least-privilege).
  */
 
-import { getPendingPhotos, updatePhotoStatus } from './storage.js';
+import { getPendingPhotoIds, getPhotoById, updatePhotoStatus } from './storage.js';
 import { DEFAULT_CLIENT_ID } from './config.js';
 
 const GIS_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
@@ -206,11 +206,16 @@ class GoogleDriveManager {
 
       if (errorCode === 401) {
         this.clearToken();
-        throw new Error('Sesi login Google kedaluwarsa. Silakan klik "Hubungkan Akun Google" kembali.');
+        const authErr = new Error('Sesi login Google kedaluwarsa. Silakan klik "Hubungkan Akun Google" kembali.');
+        authErr.isAuthError = true;
+        authErr.status = 401;
+        throw authErr;
       } else if (errorCode === 403) {
         throw new Error(`Akses ditolak (${parsedMsg}). Pastikan folder diset "Anyone with the link" + "Editor" dan Google Drive API aktif di Google Cloud.`);
       } else if (errorCode === 404) {
         throw new Error(`Folder tidak ditemukan di Google Drive (${parsedMsg}). Periksa link folder Anda.`);
+      } else if (errorCode === 429) {
+        throw new Error('Batas permintaan Google Drive tercapai (429). Coba sinkronisasi kembali beberapa saat lagi.');
       }
 
       throw new Error(`Upload GDrive gagal (${errorCode}): ${parsedMsg}`);
@@ -270,27 +275,39 @@ class GoogleDriveManager {
     this.notifyListeners({ type: 'sync_start' });
 
     try {
-      const pending = await getPendingPhotos();
+      const pendingIds = await getPendingPhotoIds();
       let successCount = 0;
       let failCount = 0;
+      let lastError = null;
+      let abortedByAuth = false;
 
-      for (let i = 0; i < pending.length; i++) {
+      for (let i = 0; i < pendingIds.length; i++) {
         if (!navigator.onLine) {
           this.notifyListeners({ type: 'offline_mid_sync' });
           break;
         }
 
-        const photo = pending[i];
+        const photoId = pendingIds[i];
+        let photo = null;
+
         try {
+          photo = await getPhotoById(photoId);
+          if (!photo || photo.status === 'synced') {
+            continue;
+          }
+          if (!photo.blob) {
+            throw new Error('Data foto tidak ditemukan di penyimpanan lokal.');
+          }
+
           await updatePhotoStatus(photo.id, { status: 'uploading' });
           this.notifyListeners({
             type: 'photo_uploading',
             photoId: photo.id,
             current: i + 1,
-            total: pending.length
+            total: pendingIds.length
           });
 
-          const folderToUse = photo.targetFolderId || this.targetFolderId;
+          const folderToUse = this.targetFolderId || photo.targetFolderId;
           const driveResult = await this.uploadPhoto({
             blob: photo.blob,
             filename: photo.filename,
@@ -309,27 +326,49 @@ class GoogleDriveManager {
             photoId: photo.id,
             driveId: driveResult.id
           });
+
+          if (i < pendingIds.length - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 150));
+          }
         } catch (err) {
-          console.error(`Gagal upload photo ${photo.id}:`, err);
+          console.error(`Gagal upload photo ${photoId}:`, err);
+          lastError = err.message;
+
+          if (err.isAuthError || !this.isConnected()) {
+            abortedByAuth = true;
+            try {
+              await updatePhotoStatus(photoId, { status: 'pending' });
+            } catch (_) {}
+            this.notifyListeners({ type: 'auth_needed', message: err.message });
+            break;
+          }
+
           failCount++;
-          await updatePhotoStatus(photo.id, {
-            status: 'failed',
-            errorMsg: err.message,
-            retryCount: (photo.retryCount || 0) + 1
-          });
+          try {
+            await updatePhotoStatus(photoId, {
+              status: 'failed',
+              errorMsg: err.message,
+              retryCount: (photo?.retryCount || 0) + 1
+            });
+          } catch (dbErr) {
+            console.warn(`Gagal menyimpan status error untuk ${photoId}:`, dbErr);
+          }
           this.notifyListeners({
             type: 'photo_failed',
-            photoId: photo.id,
+            photoId,
             error: err.message
           });
         }
       }
 
-      this.notifyListeners({
-        type: 'sync_finish',
-        successCount,
-        failCount
-      });
+      if (!abortedByAuth) {
+        this.notifyListeners({
+          type: 'sync_finish',
+          successCount,
+          failCount,
+          lastError
+        });
+      }
     } catch (err) {
       console.error('Sync queue general error:', err);
       this.notifyListeners({ type: 'sync_error', error: err.message });

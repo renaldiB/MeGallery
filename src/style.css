@@ -1178,8 +1178,240 @@ html, body {
 
 .photo-viewer-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
+}
+
+/* What's New Floating Banner */
+.whats-new-banner {
+  position: fixed;
+  top: calc(var(--safe-top) + 64px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 28px);
+  max-width: 390px;
+  z-index: 45;
+  background: rgba(12, 24, 32, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(78, 215, 241, 0.45);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 20px rgba(78, 215, 241, 0.12);
+}
+
+.whats-new-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.whats-new-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-cyan);
+  background: rgba(78, 215, 241, 0.18);
+  border: 1px solid rgba(78, 215, 241, 0.4);
+}
+
+.whats-new-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(111, 230, 252, 0.3);
+  background: rgba(20, 40, 52, 0.8);
+  color: var(--color-sky);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.whats-new-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(168, 241, 255, 0.92);
+}
+
+.whats-new-list li {
+  position: relative;
+  padding-left: 14px;
+}
+
+.whats-new-list li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--color-yellow);
+  font-weight: 700;
+}
+
+.whats-new-list strong {
+  color: var(--color-sky);
+}
+
+.whats-new-footer {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(78, 215, 241, 0.15);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.whats-new-ack-btn {
+  background: var(--color-cyan);
+  color: var(--color-dark-text);
+  border: none;
+  border-radius: 10px;
+  padding: 8px 16px;
+  min-height: 36px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.whats-new-ack-btn:active {
+  background: var(--color-sky);
+}
+
+/* Gallery Toolbar & Responsive 2x2 Export Grid */
+.gallery-toolbar-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.backup-warning-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: rgba(255, 250, 141, 0.1);
+  border: 1px solid rgba(255, 250, 141, 0.4);
+  color: var(--color-yellow);
+  font-size: 11.5px;
+}
+
+.backup-warning-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backup-warning-cta {
+  background: var(--color-yellow);
+  color: var(--color-dark-text);
+  border: none;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.gallery-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+@media (min-width: 560px) {
+  .gallery-action-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.btn-gallery-action {
+  min-height: 40px;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  border-radius: 10px;
+  min-width: 0;
+}
+
+.btn-gallery-action span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-gallery-action:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.btn-gallery-backup {
+  border-color: rgba(78, 215, 241, 0.55);
+  color: var(--color-cyan);
+}
+
+.export-status-panel {
+  background: rgba(8, 17, 22, 0.85);
+  border: 1px solid rgba(78, 215, 241, 0.35);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.export-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.export-status-text {
+  font-size: 12px;
+  color: var(--color-ice);
+  line-height: 1.4;
+}
+
+.export-close-btn {
+  background: none;
+  border: none;
+  color: var(--color-sky);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.export-actions-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.export-actions-container button {
+  min-height: 40px;
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+#sync-chip {
+  cursor: pointer;
 }
 
 .btn-icon-subtle {
